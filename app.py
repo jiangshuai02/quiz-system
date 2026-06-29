@@ -20,8 +20,14 @@ app = Flask(__name__)
 database_url = os.environ.get('DATABASE_URL', '')
 
 if database_url:
+    # Render PostgreSQL 需要 sslmode=require
     if database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    if '?' not in database_url:
+        database_url += '?sslmode=require'
+    else:
+        if 'sslmode' not in database_url:
+            database_url += '&sslmode=require'
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///quiz.db'

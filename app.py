@@ -43,7 +43,7 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        self.password_hash = generate_password_hash(password, method='pbkdf2:sha256')
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
@@ -96,10 +96,16 @@ with app.app_context():
                 conn.close()
             # 刷新inspector缓存
             inspector = inspect(db.engine)
-        if not User.query.filter_by(username='admin').first():
+        # 确保admin用户存在且密码正确
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
             admin = User(username='admin', role='admin')
             admin.set_password('admin')
             db.session.add(admin)
+            db.session.commit()
+        elif not admin.check_password('admin'):
+            # 数据库中已存在admin但密码不正确（旧版本升级），重置密码
+            admin.set_password('admin')
             db.session.commit()
         print("DB OK")
     except Exception as e:

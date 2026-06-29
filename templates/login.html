@@ -6,104 +6,129 @@
     <title>登录 - 智能刷题系统</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+
         body {
-            font-family: 'Microsoft YaHei', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #e0f7fa 0%, #f5f7fa 50%, #e8f5e9 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
         }
-        
+
         .login-container {
             background: white;
-            border-radius: 15px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            padding: 50px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+            padding: 48px 44px;
             width: 100%;
-            max-width: 400px;
+            max-width: 420px;
+            border: 1px solid #e8edf0;
         }
-        
+
         .login-header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 36px;
         }
-        
+
         .login-header h1 {
-            color: #667eea;
-            font-size: 2em;
+            color: #26a69a;
+            font-size: 1.9em;
             margin-bottom: 10px;
+            font-weight: 600;
+            letter-spacing: 1px;
         }
-        
+
         .login-header p {
-            color: #666;
+            color: #78909c;
+            font-size: 15px;
         }
-        
+
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 22px;
         }
-        
+
         .form-group label {
             display: block;
             margin-bottom: 8px;
-            color: #333;
-            font-weight: bold;
+            color: #455a64;
+            font-weight: 600;
+            font-size: 14px;
         }
-        
+
         .form-group input {
             width: 100%;
-            padding: 12px;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s;
+            padding: 13px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 15px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            background: #fafafa;
         }
-        
+
         .form-group input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #26a69a;
+            box-shadow: 0 0 0 3px rgba(38,166,154,0.12);
+            background: white;
         }
-        
+
         .btn-login {
             width: 100%;
-            padding: 15px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 14px;
+            background: linear-gradient(135deg, #26a69a 0%, #42a5f5 100%);
             color: white;
             border: none;
-            border-radius: 8px;
-            font-size: 18px;
-            font-weight: bold;
+            border-radius: 10px;
+            font-size: 17px;
+            font-weight: 600;
             cursor: pointer;
-            transition: transform 0.3s;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 8px;
+            letter-spacing: 1px;
         }
-        
+
         .btn-login:hover {
             transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(38,166,154,0.3);
         }
-        
+
         .error-message {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 12px;
-            border-radius: 8px;
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px 16px;
+            border-radius: 10px;
             margin-bottom: 20px;
             text-align: center;
+            font-size: 14px;
+            border: 1px solid #ffcdd2;
         }
-        
+
         .register-link {
             text-align: center;
-            margin-top: 20px;
+            margin-top: 24px;
+            color: #78909c;
+            font-size: 14px;
         }
-        
+
         .register-link a {
-            color: #667eea;
+            color: #26a69a;
             text-decoration: none;
-            font-weight: bold;
+            font-weight: 600;
         }
-        
+
         .register-link a:hover {
             text-decoration: underline;
+        }
+
+        .default-hint {
+            text-align: center;
+            margin-top: 18px;
+            padding: 10px;
+            background: #f1f8f6;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #607d8b;
         }
     </style>
 </head>
@@ -123,16 +148,20 @@
         <form method="POST">
             <div class="form-group">
                 <label for="username">用户名</label>
-                <input type="text" id="username" name="username" required autofocus>
+                <input type="text" id="username" name="username" value="admin" required autofocus>
             </div>
             
             <div class="form-group">
                 <label for="password">密码</label>
-                <input type="password" id="password" name="password" required>
+                <input type="password" id="password" name="password" value="admin" required>
             </div>
             
             <button type="submit" class="btn-login">登录</button>
         </form>
+        
+        <div class="default-hint">
+            💡 默认账号：admin / 密码：admin
+        </div>
         
         <div class="register-link">
             <p>还没有账号？ <a href="{{ url_for('register') }}">立即注册</a></p>

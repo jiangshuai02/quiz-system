@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-智能刷题系统 - 多用户版
-超级管理员可以导入题库，所有用户共享题库进行刷题
-支持云平台部署（PostgreSQL/MySQL/SQLite）
-"""
-
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
@@ -20,19 +14,17 @@ app = Flask(__name__)
 database_url = os.environ.get('DATABASE_URL', '')
 
 if database_url:
-    # Render PostgreSQL 需要 sslmode=require
     if database_url.startswith('postgres://'):
-        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        database_url = database_url.replace('postgres://', 'postgresql+psycopg://', 1)
+    elif database_url.startswith('postgresql://'):
+        database_url = database_url.replace('postgresql://', 'postgresql+psycopg://', 1)
     if '?' not in database_url:
         database_url += '?sslmode=require'
-    else:
-        if 'sslmode' not in database_url:
-            database_url += '&sslmode=require'
+    elif 'sslmode' not in database_url:
+        database_url += '&sslmode=require'
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-    print("使用PostgreSQL数据库")
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///quiz.db'
-    print("使用SQLite数据库")
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'quiz-system-2026')
@@ -40,7 +32,6 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'quiz-system-2026')
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
-login_manager.login_message = '请先登录'
 
 # ==================== 数据模型 ====================
 class User(UserMixin, db.Model):
@@ -65,6 +56,7 @@ class Question(db.Model):
     options = db.Column(db.Text)
     answer = db.Column(db.Text, nullable=False)
     explanation = db.Column(db.Text)
+    subject = db.Column(db.String(100), default='\u9ed8\u8ba4\u79d1\u76ee')  # 科目分类
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -79,135 +71,128 @@ class Record(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
-
-# ==================== 初始化数据库（安全方式） ====================
-def init_db():
-    """安全初始化数据库，可被gunicorn安全调用"""
     try:
-        with app.app_context():
-            db.create_all()
-            # 创建默认管理员账号
-            if not User.query.filter_by(role='admin').first():
-                admin = User(username='admin', role='admin')
-                admin.set_password('admin123')
-                db.session.add(admin)
-                db.session.commit()
-                print("创建默认管理员账号: admin / admin123")
-            else:
-                print("管理员账号已存在")
-    except Exception as e:
-        print(f"数据库初始化警告: {e}")
+        return User.query.get(int(user_id))
+    except:
+        return None
 
-# 不在模块级别调用，改为在before_request或命令行中调用
-# 为了兼容gunicorn，在首次请求前初始化
-@app.before_request
-def ensure_db_initialized():
-    """在每个请求前检查数据库，但只初始化一次"""
-    if not hasattr(app, '_db_initialized'):
-        with app.app_context():
-            init_db()
-        app._db_initialized = True
+# ==================== 初始化数据库 ====================
+with app.app_context():
+    try:
+        db.create_all()
+        # 检查是否需要添加subject列（旧版本升级）- 使用raw connection执行DDL
+        from sqlalchemy import text, inspect
+        inspector = inspect(db.engine)
+        existing_cols = [c['name'] for c in inspector.get_columns('questions')]
+        if 'subject' not in existing_cols:
+            print("MIGRATION: Adding 'subject' column to questions table...")
+            conn = db.engine.raw_connection()
+            try:
+                cursor = conn.cursor()
+                cursor.execute("ALTER TABLE questions ADD COLUMN subject VARCHAR(100) DEFAULT '默认科目'")
+                conn.commit()
+                print("MIGRATION: subject column added successfully")
+            finally:
+                conn.close()
+            # 刷新inspector缓存
+            inspector = inspect(db.engine)
+        if not User.query.filter_by(username='admin').first():
+            admin = User(username='admin', role='admin')
+            admin.set_password('admin')
+            db.session.add(admin)
+            db.session.commit()
+        print("DB OK")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print("DB INIT WARN: " + str(e))
 
 # ==================== 题型识别 ====================
-def identify_question_type(question_text, options_text=''):
-    text = question_text + ' ' + options_text
+def identify_type(text, opts=''):
+    full = text + ' ' + opts
+    if re.search(r'(\u5bf9|\u9519|\u6b63\u786e|\u9519\u8bef)', full) and len(re.findall(r'(\u5bf9|\u9519)', full)) >= 2:
+        return 'judge', [], extract_judge(text)
+    if '\u591a9000' in text:
+        return 'multiple', extract_opts(opts), extract_multi(text)
+    opts_list = extract_opts(opts)
+    if opts_list and len(opts_list) >= 2:
+        return 'single', opts_list, extract_single(text)
+    if '____' in text or '\uff08\uff09' in text:
+        return 'fill', [], extract_fill(text)
+    return 'essay', [], extract_essay(text)
 
-    if re.search(r'(对|错|正确|错误|True|False)', text):
-        if len(re.findall(r'(对|错|正确|错误)', text)) >= 2:
-            return 'judge', [], extract_judge_answer(text)
+def extract_opts(text):
+    return [m.group(1).strip() for m in re.finditer(r'([A-D])[\.\u3001\)](.*?)(?=[A-D][\.\u3001\)]|$)', text + ' ', re.DOTALL)]
 
-    if '多选' in question_text or '（多选）' in question_text or '[多选]' in question_text:
-        return 'multiple', extract_options(options_text), extract_multiple_answer(text)
-
-    if '____' in question_text or '___' in question_text or '（）' in question_text:
-        return 'fill', [], extract_fill_answer(text)
-
-    options = extract_options(options_text)
-    if options and len(options) >= 2:
-        return 'single', options, extract_single_answer(text)
-
-    return 'essay', [], extract_essay_answer(text)
-
-def extract_options(text):
-    pattern = r'[A-D][\.\、\)](.*?)(?=[A-D][\.\、\)]|$)'
-    matches = re.findall(pattern, text + ' ', re.DOTALL)
-    return [m.strip() for m in matches if m.strip()]
-
-def extract_single_answer(text):
-    m = re.search(r'答案[：:]\s*([A-D])', text)
+def extract_single(text):
+    m = re.search(r'\u7b54\u6848[：:]\s*([A-D])', text)
     return m.group(1) if m else ''
 
-def extract_multiple_answer(text):
-    m = re.search(r'答案[：:]\s*([A-D,，、]+)', text)
-    if m:
-        return [c for c in m.group(1) if c in 'ABCD']
-    return []
+def extract_multi(text):
+    m = re.search(r'\u7b54\u6848[：:]\s*([A-D,\uff0c\u3001]+)', text)
+    return [c for c in m.group(1) if c in 'ABCD'] if m else []
 
-def extract_judge_answer(text):
-    # 修复：正确分组正则
-    m = re.search(r'答案[：:]\s*(对|正确|True|T)', text, re.I)
-    if m:
-        return '正确'
-    m = re.search(r'答案[：:]\s*(错|错误|False|F)', text, re.I)
-    if m:
-        return '错误'
-    return ''
+def extract_judge(text):
+    m = re.search(r'\u7b54\u6848[：:]\s*(\u5bf9|\u6b63\u786e)', text)
+    return '\u6b63\u786e' if m else '\u9519\u8bef'
 
-def extract_fill_answer(text):
-    m = re.search(r'答案[：:]\s*(.+)', text)
+def extract_fill(text):
+    m = re.search(r'\u7b54\u6848[：:]\s*(.+)', text)
     return m.group(1).strip() if m else ''
 
-def extract_essay_answer(text):
-    m = re.search(r'答案[：:]\s*(.+)$', text, re.DOTALL)
+def extract_essay(text):
+    m = re.search(r'\u7b54\u6848[：:]\s*(.+)$', text, re.DOTALL)
     return m.group(1).strip() if m else ''
 
 # ==================== Word导入 ====================
-def parse_word_file(file_path):
+def parse_word_from_bytes(file_bytes):
+    """从内存字节流解析Word文档，兼容Render只读文件系统"""
+    import io
+    from docx import Document
     try:
-        from docx import Document
-    except ImportError:
-        return {'error': '请先安装python-docx'}
+        doc = Document(io.BytesIO(file_bytes))
+    except Exception as e:
+        raise Exception('Word\u89e3\u6790\u5931\u8d25: ' + str(e))
 
-    doc = Document(file_path)
-    questions = []
-    current_q = {}
-    current_options = []
+    qs = []
+    cur = {}
+    opts = []
+    current_subject = '\u9ed8\u8ba4\u79d1\u76ee'
 
-    for para in doc.paragraphs:
-        text = para.text.strip()
-        if not text:
+    for p in doc.paragraphs:
+        t = p.text.strip()
+        if not t:
             continue
+        # 检测章节标题作为科目名（中文数字开头、含"章"字、短标题）
+        if re.match(r'^[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341]+[\u3001\.]', t) or \
+           re.match(r'^\u7b2c.+[^\u9898]', t) or (len(t) < 20 and '\u7ae0' in t):
+            current_subject = t.strip()
+            continue
+        if re.match(r'^\d+[\.\u3001\)]', t):
+            if cur:
+                cur['type'], cur['options'], cur['answer'] = identify_type(cur.get('q', ''), ' '.join(opts))
+                cur['subject'] = current_subject
+                qs.append(cur)
+            cur = {'q': t}
+            opts = []
+        elif re.match(r'^[A-D][\.\u3001\)]', t):
+            opts.append(t)
+        elif cur:
+            cur['q'] = cur.get('q', '') + ' ' + t
 
-        if re.match(r'^\d+[\.\、\)]', text):
-            if current_q:
-                q_type, options, answer = identify_question_type(
-                    current_q.get('question', ''),
-                    ' '.join(current_options)
-                )
-                current_q['type'] = q_type
-                current_q['options'] = options
-                current_q['answer'] = answer
-                questions.append(current_q)
+    # 处理最后一道题
+    if cur:
+        cur['type'], cur['options'], cur['answer'] = identify_type(cur.get('q', ''), ' '.join(opts))
+        cur['subject'] = current_subject
+        qs.append(cur)
 
-            current_q = {'question': text}
-            current_options = []
-        elif re.match(r'^[A-D][\.\、\)]', text):
-            current_options.append(text)
-        elif current_q:
-            current_q['question'] = current_q.get('question', '') + ' ' + text
+    return qs
 
-    if current_q:
-        q_type, options, answer = identify_question_type(
-            current_q.get('question', ''),
-            ' '.join(current_options)
-        )
-        current_q['type'] = q_type
-        current_q['options'] = options
-        current_q['answer'] = answer
-        questions.append(current_q)
 
-    return questions
+def parse_word(path):
+    """兼容旧接口：从文件路径解析"""
+    with open(path, 'rb') as f:
+        return parse_word_from_bytes(f.read())
 
 # ==================== 路由 ====================
 @app.route('/')
@@ -216,46 +201,33 @@ def index():
         return redirect(url_for('login'))
     return render_template('index.html')
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login', methods=['GET','POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '')
-        user = User.query.filter_by(username=username).first()
-
-        if user and user.check_password(password):
-            login_user(user)
+        u = User.query.filter_by(username=request.form.get('username', '').strip()).first()
+        if u and u.check_password(request.form.get('password', '')):
+            login_user(u)
             return redirect(url_for('index'))
-        else:
-            return render_template('login.html', error='用户名或密码错误')
-
+        return render_template('login.html', error='Username or password incorrect')
     return render_template('login.html')
 
-@app.route('/register', methods=['GET', 'POST'])
+@app.route('/register', methods=['GET','POST'])
 def register():
     if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '')
-
-        if not username or not password:
-            return render_template('register.html', error='用户名和密码不能为空')
-
-        if User.query.filter_by(username=username).first():
-            return render_template('register.html', error='用户名已存在')
-
-        user = User(username=username)
-        user.set_password(password)
-
-        # 如果这是第一个用户，设为管理员
+        un = request.form.get('username', '').strip()
+        pw = request.form.get('password', '')
+        if not un or not pw:
+            return render_template('register.html', error='Required fields missing')
+        if User.query.filter_by(username=un).first():
+            return render_template('register.html', error='Username exists')
+        u = User(username=un)
+        u.set_password(pw)
         if User.query.count() == 0:
-            user.role = 'admin'
-
-        db.session.add(user)
+            u.role = 'admin'
+        db.session.add(u)
         db.session.commit()
-
-        login_user(user)
+        login_user(u)
         return redirect(url_for('index'))
-
     return render_template('register.html')
 
 @app.route('/logout')
@@ -264,32 +236,89 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-@app.route('/api/questions', methods=['GET'])
+@app.route('/api/questions')
 @login_required
-def get_questions():
-    questions = Question.query.order_by(Question.id.desc()).all()
-    return jsonify([{
-        'id': q.id,
-        'type': q.type,
-        'question': q.question,
-        'options': q.options.split('|') if q.options else [],
-        'answer': q.answer,
-        'explanation': q.explanation
-    } for q in questions])
+def get_qs():
+    qs = Question.query.order_by(Question.subject.asc(), Question.id.asc()).all()
+    result = []
+    for q in qs:
+        result.append({
+            'id': q.id,
+            'type': q.type,
+            'question': q.question,
+            'options': q.options.split('|') if q.options else [],
+            'answer': q.answer,
+            'explanation': q.explanation or '',
+            'subject': q.subject or '\u9ed8\u8ba4\u79d1\u76ee'
+        })
+    return jsonify(result)
+
+@app.route('/api/subjects')
+@login_required
+def get_subjects():
+    """获取所有科目列表"""
+    subjects = db.session.query(Question.subject).distinct().all()
+    result = []
+    for s in subjects:
+        name = s[0] or '\u9ed8\u8ba4\u79d1\u76ee'
+        count = Question.query.filter(Question.subject == name).count()
+        result.append({'name': name, 'count': count})
+    return jsonify(result)
+
+@app.route('/api/questions/by_subject/<subject_name>')
+@login_required
+def get_qs_by_subject(subject_name):
+    """获取指定科目的题目"""
+    qs = Question.query.filter(Question.subject == subject_name).order_by(Question.id.asc()).all()
+    result = []
+    for q in qs:
+        result.append({
+            'id': q.id,
+            'type': q.type,
+            'question': q.question,
+            'options': q.options.split('|') if q.options else [],
+            'answer': q.answer,
+            'explanation': q.explanation or '',
+            'subject': q.subject or '\u9ed8\u8ba4\u79d1\u76ee'
+        })
+    return jsonify(result)
+
+@app.route('/api/questions/practice/<subject_name>')
+@login_required
+def get_practice_qs(subject_name):
+    """获取指定科目的题目用于练习"""
+    if subject_name == '__all__':
+        qs = Question.query.all()
+    else:
+        qs = Question.query.filter(Question.subject == subject_name).all()
+    import random
+    random.shuffle(qs)
+    result = []
+    for q in qs:
+        result.append({
+            'id': q.id,
+            'type': q.type,
+            'question': q.question,
+            'options': q.options.split('|') if q.options else [],
+            'answer': q.answer,
+            'explanation': q.explanation or '',
+            'subject': q.subject or '\u9ed8\u8ba4\u79d1\u76ee'
+        })
+    return jsonify(result)
 
 @app.route('/api/questions', methods=['POST'])
 @login_required
-def add_question():
+def add_q():
     if current_user.role != 'admin':
-        return jsonify({'error': '权限不足'}), 403
-
-    data = request.json
+        return jsonify({'error': 'Forbidden'}), 403
+    d = request.json
     q = Question(
-        type=data['type'],
-        question=data['question'],
-        options='|'.join(data.get('options', [])),
-        answer=str(data['answer']),
-        explanation=data.get('explanation', ''),
+        type=d['type'],
+        question=d['question'],
+        options='|'.join(d.get('options', [])),
+        answer=str(d['answer']),
+        explanation=d.get('explanation', ''),
+        subject=d.get('subject', '\u9ed8\u8ba4\u79d1\u76ee'),
         created_by=current_user.id
     )
     db.session.add(q)
@@ -298,119 +327,160 @@ def add_question():
 
 @app.route('/api/questions/<int:qid>', methods=['DELETE'])
 @login_required
-def delete_question(qid):
+def del_q(qid):
     if current_user.role != 'admin':
-        return jsonify({'error': '权限不足'}), 403
-
+        return jsonify({'error': 'Forbidden'}), 403
     q = Question.query.get(qid)
     if q:
         db.session.delete(q)
         db.session.commit()
         return jsonify({'success': True})
-    return jsonify({'error': '题目不存在'}), 404
+    return jsonify({'error': 'Not found'}), 404
 
 @app.route('/api/import_word', methods=['POST'])
 @login_required
-def import_word():
+def import_word_fn():
     if current_user.role != 'admin':
-        return jsonify({'error': '权限不足'}), 403
+        return jsonify({'error': 'Forbidden'}), 403
 
-    if 'file' not in request.files:
-        return jsonify({'error': '请上传文件'})
+    try:
+        f = request.files.get('file')
+        if not f or not f.filename:
+            return jsonify({'error': '\u672a\u9009\u62e9\u6587\u4ef6'})
 
-    file = request.files['file']
-    if not file.filename.endswith('.docx'):
-        return jsonify({'error': '仅支持.docx格式'})
+        # 检查文件格式
+        if not f.filename.lower().endswith('.docx'):
+            return jsonify({'error': '\u53ea\u652f\u6301.docx\u683c\u5f0f'})
 
-    temp_path = 'temp_' + str(datetime.now().timestamp()) + '.docx'
-    file.save(temp_path)
+        # 读取文件内容到内存（不写入磁盘，兼容Render只读文件系统）
+        file_bytes = f.read()
 
-    questions = parse_word_file(temp_path)
-    os.remove(temp_path)
+        if len(file_bytes) == 0:
+            return jsonify({'error': '\u6587\u4ef6\u4e3a\u7a7a'})
+        if len(file_bytes) > 10 * 1024 * 1024:  # 限制10MB
+            return jsonify({'error': '\u6587\u4ef6\u8fc7\u5927\uff0c\u8bf7\u63a7\u5236\u572810MB\u4ee5\u5185'})
 
-    if 'error' in questions:
-        return jsonify(questions)
+        # 从内存流解析Word文档
+        qs = parse_word_from_bytes(file_bytes)
 
-    for q in questions:
-        db.session.add(Question(
-            type=q['type'],
-            question=q['question'],
-            options='|'.join(q.get('options', [])),
-            answer=str(q['answer']),
-            explanation=q.get('explanation', ''),
-            created_by=current_user.id
-        ))
-    db.session.commit()
+        if not qs:
+            return jsonify({'error': '\u672a\u8bc6\u522b\u5230\u6709\u6548\u9898\u76ee\uff0c\u8bf7\u68c0\u67e5Word\u683c\u5f0f\u662f\u5426\u6b63\u786e'})
 
-    return jsonify({'success': True, 'count': len(questions)})
+        # 批量入库
+        count = 0
+        for item in qs:
+            q_text = item.get('q', '').strip()
+            if not q_text:
+                continue
+
+            q = Question(
+                type=item.get('type', 'essay'),
+                question=q_text,
+                options='|'.join(item.get('options', [])),
+                answer=str(item.get('answer', '')),
+                explanation=item.get('explanation', ''),
+                subject=item.get('subject', '\u9ed8\u8ba4\u79d1\u76ee'),
+                created_by=current_user.id
+            )
+            db.session.add(q)
+            count += 1
+
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'count': count,
+            'message': '\u6210\u529f\u5bfc\u5165' + str(count) + '\u9053\u9898\u76ee'
+        })
+
+    except Exception as e:
+        # 回滚事务
+        db.session.rollback()
+        error_msg = str(e)
+        print('IMPORT ERROR: ' + error_msg)  # Render日志可见
+        return jsonify({
+            'error': '\u5bfc\u5165\u5931\u8d25: ' + error_msg[:200]
+        }), 500
 
 @app.route('/api/check_answer', methods=['POST'])
 @login_required
-def check_answer():
-    data = request.json
-    question_id = data.get('question_id')
-    user_answer = data.get('answer')
-
-    if not question_id or user_answer is None:
-        return jsonify({'error': '参数不完整'})
-
-    q = Question.query.get(question_id)
+def check():
+    d = request.json
+    qid = d.get('question_id')
+    ua = d.get('answer')
+    if not qid or ua is None:
+        return jsonify({'error': 'Missing params'})
+    q = Question.query.get(qid)
     if not q:
-        return jsonify({'error': '题目不存在'})
-
-    is_correct = False
-
+        return jsonify({'error': 'Not found'})
+    correct = False
     if q.type == 'single':
-        is_correct = str(user_answer).upper() == str(q.answer).upper()
+        correct = str(ua).upper() == str(q.answer).upper()
     elif q.type == 'multiple':
-        # 多选题答案存储格式：逗号分隔如 "A,B,C"
-        user_set = set(user_answer) if isinstance(user_answer, list) else set(str(user_answer).split(','))
-        correct_set = set(str(q.answer).split(',')) if ',' in str(q.answer) else set(str(q.answer))
-        is_correct = user_set == correct_set
+        us = set(ua) if isinstance(ua, list) else set(str(ua).split(','))
+        cs = set(str(q.answer).split(',')) if ',' in str(q.answer) else set(str(q.answer))
+        correct = us == cs
     elif q.type == 'judge':
-        is_correct = str(user_answer).strip() == str(q.answer).strip()
+        correct = str(ua).strip() == str(q.answer).strip()
     elif q.type == 'fill':
-        is_correct = str(user_answer).strip() == str(q.answer).strip()
-    else:
-        is_correct = None  # 简答题无法自动判错
-
+        correct = str(ua).strip() == str(q.answer).strip()
     try:
         db.session.add(Record(
             user_id=current_user.id,
-            question_id=question_id,
-            user_answer=str(user_answer),
-            is_correct=is_correct if is_correct is not None else False
+            question_id=qid,
+            user_answer=str(ua),
+            is_correct=bool(correct)
         ))
         db.session.commit()
-    except Exception as e:
-        print(f"记录答题记录失败: {e}")
-
+    except:
+        pass
     return jsonify({
-        'is_correct': is_correct,
+        'is_correct': correct,
         'correct_answer': q.answer,
         'explanation': q.explanation or ''
     })
 
-@app.route('/api/statistics', methods=['GET'])
+@app.route('/api/statistics')
 @login_required
-def get_statistics():
+def stats():
     total = Question.query.count()
-    answered = Record.query.filter_by(user_id=current_user.id).count()
-    correct = Record.query.filter_by(user_id=current_user.id, is_correct=True).count()
-
+    ans = Record.query.filter_by(user_id=current_user.id).count()
+    cor = Record.query.filter_by(user_id=current_user.id, is_correct=True).count()
     return jsonify({
         'total': total,
-        'answered': answered,
-        'correct': correct,
-        'accuracy': round(correct / answered * 100, 2) if answered > 0 else 0
+        'answered': ans,
+        'correct': cor,
+        'accuracy': round(cor / ans * 100, 2) if ans else 0
     })
 
-@app.route('/api/users/role')
+@app.route('/api/wrong_questions')
 @login_required
-def get_role():
-    return jsonify({'role': current_user.role})
+def wrong_qs():
+    """获取错题列表"""
+    wrong_records = Record.query.filter_by(
+        user_id=current_user.id,
+        is_correct=False
+    ).order_by(Record.created_at.desc()).all()
 
-@app.route('/api/users/me')
+    result = []
+    seen = set()
+    for r in wrong_records:
+        if r.question_id not in seen:
+            seen.add(r.question_id)
+            q = Question.query.get(r.question_id)
+            if q:
+                result.append({
+                    'id': q.id,
+                    'type': q.type,
+                    'question': q.question,
+                    'options': q.options.split('|') if q.options else [],
+                    'answer': q.answer,
+                    'explanation': q.explanation or '',
+                    'user_answer': r.user_answer,
+                    'subject': q.subject or '\u9ed8\u8ba4\u79d1\u76ee'
+                })
+    return jsonify(result)
+
+@app.route('/api/me')
 @login_required
 def get_me():
     return jsonify({
@@ -419,9 +489,6 @@ def get_me():
         'role': current_user.role
     })
 
-# ==================== 启动 ====================
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    # 本地运行时初始化数据库
-    init_db()
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port)

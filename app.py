@@ -6,7 +6,7 @@
 支持云平台部署（PostgreSQL/MySQL/SQLite）
 """
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -29,8 +29,10 @@ if database_url:
         if 'sslmode' not in database_url:
             database_url += '&sslmode=require'
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    print("使用PostgreSQL数据库")
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///quiz.db'
+    print("使用SQLite数据库")
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'quiz-system-2026')
@@ -46,12 +48,12 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
-    role = db.Column(db.String(20), default='user')  # admin 或 user
+    role = db.Column(db.String(20), default='user')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
-    
+
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
@@ -79,35 +81,52 @@ class Record(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# 创建表和管理员账号
-with app.app_context():
-    db.create_all()
-    # 如果还没有管理员，创建默认管理员账号
-    if not User.query.filter_by(role='admin').first():
-        admin = User(username='admin', role='admin')
-        admin.set_password('admin123')
-        db.session.add(admin)
-        db.session.commit()
-        print("✅ 创建默认管理员账号: admin / admin123")
+# ==================== 初始化数据库（安全方式） ====================
+def init_db():
+    """安全初始化数据库，可被gunicorn安全调用"""
+    try:
+        with app.app_context():
+            db.create_all()
+            # 创建默认管理员账号
+            if not User.query.filter_by(role='admin').first():
+                admin = User(username='admin', role='admin')
+                admin.set_password('admin123')
+                db.session.add(admin)
+                db.session.commit()
+                print("创建默认管理员账号: admin / admin123")
+            else:
+                print("管理员账号已存在")
+    except Exception as e:
+        print(f"数据库初始化警告: {e}")
+
+# 不在模块级别调用，改为在before_request或命令行中调用
+# 为了兼容gunicorn，在首次请求前初始化
+@app.before_request
+def ensure_db_initialized():
+    """在每个请求前检查数据库，但只初始化一次"""
+    if not hasattr(app, '_db_initialized'):
+        with app.app_context():
+            init_db()
+        app._db_initialized = True
 
 # ==================== 题型识别 ====================
 def identify_question_type(question_text, options_text=''):
     text = question_text + ' ' + options_text
-    
+
     if re.search(r'(对|错|正确|错误|True|False)', text):
         if len(re.findall(r'(对|错|正确|错误)', text)) >= 2:
             return 'judge', [], extract_judge_answer(text)
-    
+
     if '多选' in question_text or '（多选）' in question_text or '[多选]' in question_text:
         return 'multiple', extract_options(options_text), extract_multiple_answer(text)
-    
+
     if '____' in question_text or '___' in question_text or '（）' in question_text:
         return 'fill', [], extract_fill_answer(text)
-    
+
     options = extract_options(options_text)
     if options and len(options) >= 2:
         return 'single', options, extract_single_answer(text)
-    
+
     return 'essay', [], extract_essay_answer(text)
 
 def extract_options(text):
@@ -126,9 +145,12 @@ def extract_multiple_answer(text):
     return []
 
 def extract_judge_answer(text):
-    if re.search(r'答案[：:]\s*对|正确|True|T', text, re.I):
+    # 修复：正确分组正则
+    m = re.search(r'答案[：:]\s*(对|正确|True|T)', text, re.I)
+    if m:
         return '正确'
-    elif re.search(r'答案[：:]\s*错|错误|False|F', text, re.I):
+    m = re.search(r'答案[：:]\s*(错|错误|False|F)', text, re.I)
+    if m:
         return '错误'
     return ''
 
@@ -146,17 +168,17 @@ def parse_word_file(file_path):
         from docx import Document
     except ImportError:
         return {'error': '请先安装python-docx'}
-    
+
     doc = Document(file_path)
     questions = []
     current_q = {}
     current_options = []
-    
+
     for para in doc.paragraphs:
         text = para.text.strip()
         if not text:
             continue
-        
+
         if re.match(r'^\d+[\.\、\)]', text):
             if current_q:
                 q_type, options, answer = identify_question_type(
@@ -167,14 +189,14 @@ def parse_word_file(file_path):
                 current_q['options'] = options
                 current_q['answer'] = answer
                 questions.append(current_q)
-            
+
             current_q = {'question': text}
             current_options = []
         elif re.match(r'^[A-D][\.\、\)]', text):
             current_options.append(text)
         elif current_q:
             current_q['question'] = current_q.get('question', '') + ' ' + text
-    
+
     if current_q:
         q_type, options, answer = identify_question_type(
             current_q.get('question', ''),
@@ -184,7 +206,7 @@ def parse_word_file(file_path):
         current_q['options'] = options
         current_q['answer'] = answer
         questions.append(current_q)
-    
+
     return questions
 
 # ==================== 路由 ====================
@@ -197,40 +219,43 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
         user = User.query.filter_by(username=username).first()
-        
+
         if user and user.check_password(password):
             login_user(user)
             return redirect(url_for('index'))
         else:
             return render_template('login.html', error='用户名或密码错误')
-    
+
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+
+        if not username or not password:
+            return render_template('register.html', error='用户名和密码不能为空')
+
         if User.query.filter_by(username=username).first():
             return render_template('register.html', error='用户名已存在')
-        
+
         user = User(username=username)
         user.set_password(password)
-        
+
         # 如果这是第一个用户，设为管理员
         if User.query.count() == 0:
             user.role = 'admin'
-        
+
         db.session.add(user)
         db.session.commit()
-        
+
         login_user(user)
         return redirect(url_for('index'))
-    
+
     return render_template('register.html')
 
 @app.route('/logout')
@@ -257,7 +282,7 @@ def get_questions():
 def add_question():
     if current_user.role != 'admin':
         return jsonify({'error': '权限不足'}), 403
-    
+
     data = request.json
     q = Question(
         type=data['type'],
@@ -276,7 +301,7 @@ def add_question():
 def delete_question(qid):
     if current_user.role != 'admin':
         return jsonify({'error': '权限不足'}), 403
-    
+
     q = Question.query.get(qid)
     if q:
         db.session.delete(q)
@@ -289,23 +314,23 @@ def delete_question(qid):
 def import_word():
     if current_user.role != 'admin':
         return jsonify({'error': '权限不足'}), 403
-    
+
     if 'file' not in request.files:
         return jsonify({'error': '请上传文件'})
-    
+
     file = request.files['file']
     if not file.filename.endswith('.docx'):
         return jsonify({'error': '仅支持.docx格式'})
-    
+
     temp_path = 'temp_' + str(datetime.now().timestamp()) + '.docx'
     file.save(temp_path)
-    
+
     questions = parse_word_file(temp_path)
     os.remove(temp_path)
-    
+
     if 'error' in questions:
         return jsonify(questions)
-    
+
     for q in questions:
         db.session.add(Question(
             type=q['type'],
@@ -316,43 +341,50 @@ def import_word():
             created_by=current_user.id
         ))
     db.session.commit()
-    
+
     return jsonify({'success': True, 'count': len(questions)})
 
 @app.route('/api/check_answer', methods=['POST'])
 @login_required
 def check_answer():
     data = request.json
-    question_id = data['question_id']
-    user_answer = data['answer']
-    
+    question_id = data.get('question_id')
+    user_answer = data.get('answer')
+
+    if not question_id or user_answer is None:
+        return jsonify({'error': '参数不完整'})
+
     q = Question.query.get(question_id)
     if not q:
         return jsonify({'error': '题目不存在'})
-    
+
     is_correct = False
-    
+
     if q.type == 'single':
-        is_correct = user_answer.upper() == q.answer.upper()
+        is_correct = str(user_answer).upper() == str(q.answer).upper()
     elif q.type == 'multiple':
-        user_set = set(user_answer)
-        correct_set = set(q.answer)
+        # 多选题答案存储格式：逗号分隔如 "A,B,C"
+        user_set = set(user_answer) if isinstance(user_answer, list) else set(str(user_answer).split(','))
+        correct_set = set(str(q.answer).split(',')) if ',' in str(q.answer) else set(str(q.answer))
         is_correct = user_set == correct_set
     elif q.type == 'judge':
-        is_correct = user_answer == q.answer
+        is_correct = str(user_answer).strip() == str(q.answer).strip()
     elif q.type == 'fill':
-        is_correct = user_answer.strip() == q.answer.strip()
+        is_correct = str(user_answer).strip() == str(q.answer).strip()
     else:
-        is_correct = None
-    
-    db.session.add(Record(
-        user_id=current_user.id,
-        question_id=question_id,
-        user_answer=str(user_answer),
-        is_correct=is_correct if is_correct is not None else False
-    ))
-    db.session.commit()
-    
+        is_correct = None  # 简答题无法自动判错
+
+    try:
+        db.session.add(Record(
+            user_id=current_user.id,
+            question_id=question_id,
+            user_answer=str(user_answer),
+            is_correct=is_correct if is_correct is not None else False
+        ))
+        db.session.commit()
+    except Exception as e:
+        print(f"记录答题记录失败: {e}")
+
     return jsonify({
         'is_correct': is_correct,
         'correct_answer': q.answer,
@@ -362,11 +394,10 @@ def check_answer():
 @app.route('/api/statistics', methods=['GET'])
 @login_required
 def get_statistics():
-    # 用户自己的统计
     total = Question.query.count()
     answered = Record.query.filter_by(user_id=current_user.id).count()
     correct = Record.query.filter_by(user_id=current_user.id, is_correct=True).count()
-    
+
     return jsonify({
         'total': total,
         'answered': answered,
@@ -391,4 +422,6 @@ def get_me():
 # ==================== 启动 ====================
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    # 本地运行时初始化数据库
+    init_db()
+    app.run(host='0.0.0.0', port=port, debug=True)

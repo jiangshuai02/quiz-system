@@ -167,6 +167,18 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
 .quiz-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
 .quiz-mode-badge{background:#dbeafe;color:var(--primary-dark);padding:4px 16px;border-radius:20px;font-size:12px;font-weight:600}
 
+/* ========== Question Navigation Grid (小方块) ========== */
+.qnav-wrap{position:absolute;top:8px;right:8px;z-index:10;display:flex;flex-direction:column;align-items:center;gap:4px;background:rgba(255,255,255,.9);border:1px solid var(--border);border-radius:10px;padding:6px 5px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.qnav-label{font-size:9px;color:var(--text-muted);font-weight:700;margin-bottom:2px;letter-spacing:.5px;text-transform:uppercase}
+.qnav-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px}
+.qnav-item{width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;cursor:pointer;transition:all .15s;border:1.5px solid transparent}
+.qnav-item.unanswered{background:#f1f5f9;color:var(--text-muted);border-color:#e2e8f0}
+.qnav-item.answered{background:var(--success-light);color:#065f46;border-color:#86efac}
+.qnav-item.wrong-ans{background:var(--danger-light);color:#991b1b;border-color:#fca5a5}
+.qnav-item.current{border-color:var(--primary);box-shadow:0 0 0 2px rgba(59,130,246,.25);transform:scale(1.15)}
+.qnav-item.current.answered{background:var(--primary);color:#fff}
+.qnav-item:hover{transform:scale(1.25);z-index:5}
+
 /* ========== Bank Page ========== */
 .bank-toolbar{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
 .subject-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px}
@@ -185,6 +197,45 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
 .mini-qt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:450px;color:var(--text-secondary)}
 .mini-meta{display:flex;align-items:center;gap:6px;flex-shrink:0}
 .mini-tag{background:var(--card);border:1px solid var(--border);padding:2px 8px;border-radius:4px;font-size:11px;color:var(--text-muted)}
+
+/* ========== Library / Book Browse Page ========== */
+.lib-page{max-width:1100px;margin:0 auto}
+.lib-cat{margin-bottom:28px}
+.lib-cat-header{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--border)}
+.lib-cat-icon{font-size:26px}
+.lib-cat-name{font-size:18px;font-weight:800;color:var(--text)}
+.lib-cat-count{font-size:12px;color:var(--text-muted);background:var(--bg);padding:2px 10px;border-radius:20px;font-weight:600}
+.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.lib-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 16px;cursor:pointer;transition:all .25s;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.lib-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.lib-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:transparent}
+.lib-card-icon{font-size:32px;margin-bottom:8px}
+.lib-card-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;line-height:1.4}
+.lib-card-desc{font-size:12px;color:var(--text-muted);line-height:1.5;flex:1;margin-bottom:8px}
+.lib-card-tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.lib-card-tag.math{background:#dbeafe;color:#1d4ed8}.lib-card-tag.physics{background:#fef3c7;color:#92400e}
+.lib-card-tag.cs{background:#ede9fe;color:#6d28d9}.lib-card-tag.econ{background:#d1fae5;color:#065f46}
+.lib-card-tag.med{background:#fee2e2;color:#991b1b}.lib-card-tag.lang{background:#fce7f3;color:#9d174d}
+.lib-card-tag.politics{background:#f3e8ff;color:#7c3aed}.lib-card-tag.law{background:#e0e7ff;color:#3730a3}
+.lib-card-action{text-align:right;margin-top:8px;font-size:12px;color:var(--primary);font-weight:700;opacity:0;transition:.2s}
+.lib-card:hover .lib-card-action{opacity:1}
+
+/* ========== Score Report Page ========== */
+.report-wrap{text-align:center;max-width:560px;margin:30px auto}
+.report-score-circle{width:160px;height:160px;border-radius:50%;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;position:relative;margin-bottom:20px;box-shadow:0 8px 32px rgba(0,0,0,.1)}
+.report-score-num{font-size:48px;font-weight:900;line-height:1}
+.report-score-label{font-size:13px;color:var(--text-muted);margin-top:2px}
+.report-grade{font-size:22px;font-weight:800;padding:6px 24px;border-radius:20px;display:inline-block;margin-bottom:12px}
+.grade-a{color:#059669;background:var(--success-light)}.grade-b{color:#2563eb;background:#dbeafe}
+.grade-c{color:#d97706;background:#fef3c7}.grade-d{color:#dc2626;background:#fee2e2}.grade-f{color:#991b1b;background:#fecaca}
+.report-stats{display:flex;justify-content:center;gap:20px;margin:16px 0 24px}
+.report-stat-item{text-align:center}.report-stat-num{font-size:24px;font-weight:900}.report-stat-label{font-size:12px;color:var(--text-muted)}
+.report-wrong-list{text-align:left;margin-top:24px}.report-wrong-title{font-size:15px;font-weight:700;margin-bottom:12px;text-align:left}
+.report-wrong-item{background:var(--danger-light);border-left:4px solid var(--danger);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px}
+.report-wq-text{font-size:14px;font-weight:600;margin-bottom:6px}
+.report-wq-ans{display:flex;gap:10px;align-items:center;font-size:13px;flex-wrap:wrap}
+.report-wq-ua{background:var(--danger-light);color:#991b1b;padding:3px 10px;border-radius:6px;font-weight:600}
+.report-wq-ca{background:var(--success-light);color:#065f46;padding:3px 10px;border-radius:6px;font-weight:600}
 
 /* ========== Import Page ========== */
 .upload-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:48px 24px;text-align:center;
@@ -394,7 +445,9 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
       </label>
     </div>
 
-    <div class="q-card" id="q-card">
+    <div class="q-card" id="q-card" style="position:relative">
+      <!-- 小方块进度导航 -->
+      <div class="qnav-wrap" id="qnav-wrap" style="display:none"><div class="qnav-label">导航</div><div class="qnav-grid" id="qnav-grid"></div></div>
       <div class="q-head">
         <span class="q-badge single" id="q-badge">单选题</span>
         <span class="q-num" id="q-num">0/0</span>
@@ -548,35 +601,52 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
 
 
 <!-- ======================================================================== -->
-<!-- PAGE: Search (查找题目) -->
+<!-- PAGE: Library / 查找题目 (学科书籍浏览) -->
 <!-- ======================================================================== -->
 <div id="page-search" class="page">
-  <div class="section-header">
-    <div>
-      <div class="section-title">🔍 查找题目</div>
-      <div class="section-subtitle">在全部题库中搜索关键词、按科目或题型筛选</div>
+  <div class="lib-page" id="libPage">
+    <div class="section-header">
+      <div>
+        <div class="section-title">📚 题库浏览</div>
+        <div class="section-subtitle">按学科分类浏览专业教材，选择书籍开始测试</div>
+      </div>
     </div>
+    <div id="libContent"></div>
   </div>
 
-  <!-- 搜索栏 -->
-  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-    <input type="text" id="searchKw" placeholder="输入关键词（题目/答案）..." style="flex:1;min-width:200px;padding:10px 14px;border:2px solid var(--border);border-radius:var(--radius-sm);font-size:14px;outline:none" onkeydown="if(event.key==='Enter')doSearch()">
-    <select id="searchSub" class="btn" style="padding:10px;border:2px solid var(--border);border-radius:var(--radius-sm);background:#fff;font-size:13px;outline:none" onchange="doSearch()">
-      <option value="">所有科目</option>
-    </select>
-    <select id="searchType" class="btn" style="padding:10px;border:2px solid var(--border);border-radius:var(--radius-sm);background:#fff;font-size:13px;outline:none" onchange="doSearch()">
-      <option value="">所有题型</option>
-      <option value="single">单选题</option>
-      <option value="multiple">多选题</option>
-      <option value="judge">判断题</option>
-      <option value="fill">填空题</option>
-      <option value="essay">简答题</option>
-    </select>
-    <button class="btn btn-primary" onclick="doSearch()" style="padding:10px 24px">🔍 搜索</button>
+  <!-- Book Quiz Area -->
+  <div id="bookQuizArea" style="display:none">
+    <div class="quiz-top">
+      <button class="btn btn-ghost btn-sm" onclick="showLibHome()">← 返回书籍列表</button>
+      <span class="quiz-mode-badge" id="bookQuizBadge">正在测试...</span>
+    </div>
+    <!-- 小方块导航 -->
+    <div style="position:relative">
+      <div class="qnav-wrap" id="bookQNavWrap"><div class="qnav-label">导航</div><div class="qnav-grid" id="bookQNavGrid"></div></div>
+      <div class="q-card">
+        <div class="q-head">
+          <span class="q-badge single" id="bookQBadge">单选题</span>
+          <span class="q-num" id="bookQNum">0/0</span>
+        </div>
+        <div class="q-text" id="bookQText"></div>
+        <div class="opt-list" id="bookQOpts"></div>
+        <input class="fill-input" id="bookQFill" placeholder="请输入你的答案..." style="display:none">
+        <div class="btn-row">
+          <button class="btn btn-ghost btn-sm" id="bookBtnPrev" onclick="bookPrev()" style="display:none">← 上一题</button>
+          <div style="flex:1"></div>
+          <button class="btn btn-primary btn-lg" id="bookBtnSubmit" onclick="bookSubmit()">✓ 提交答案</button>
+          <button class="btn btn-success btn-lg" id="bookBtnNext" onclick="bookNext()">下一题 →</button>
+          <button class="btn btn-default" id="bookBtnRetry" onclick="bookRetry()" style="display:none">↻ 重做</button>
+        </div>
+        <div class="fb" id="bookQFb"></div>
+      </div>
+    </div>
+    <div class="pbar"><div class="pbar-fill" id="bookPbarFill"></div></div>
+    <div class="ptext"><span id="bookPStats">准备开始...</span><span id="bookPProgress">0%</span></div>
   </div>
 
-  <!-- 搜索结果 -->
-  <div id="searchResult"></div>
+  <!-- Book Score Report -->
+  <div id="bookReportArea" style="display:none"></div>
 </div>
 
 
@@ -763,7 +833,7 @@ function switchPage(page) {
   if (page === 'stats') loadStats();
   if (page === 'wrong') loadWrong();
   if (page === 'import') loadBank(); // 刷新科目下拉
-  if (page === 'search') { loadSearchSubs(); doSearch(); }
+  if (page === 'search') { showLibHome(); }
   if (page === 'exam') { document.getElementById('examSelectArea').style.display='block'; document.getElementById('examTestArea').style.display='none'; document.getElementById('examReportArea').style.display='none'; loadExamCats(); }
 }
 
@@ -865,6 +935,9 @@ function showQ() {
   if (idx >= qs.length) { showFinish(); return; }
   const q = qs[idx];
 
+  // Build Q-Nav grid on first question display
+  if (idx === 0) buildQNav();
+
   // Card style
   const card = document.getElementById('q-card');
   card.className = 'q-card';
@@ -948,6 +1021,9 @@ function showQ() {
   }
 
   ans = null;
+
+  // Update Q-Nav grid
+  updateQNav();
 
   // Auto-mark correct options in memorize mode
   if (mode === 'memorize' && q.options && q.options.length) {
@@ -1044,16 +1120,24 @@ function saveProgress() {
   } catch(e) { toast('保存失败'); }
 }
 
-// ==================== Finish ====================
+// ==================== Finish & Score Report ====================
 function showFinish() {
   const rate = answered ? Math.round(correct / answered * 100) : 0;
+  const grade = rate >= 90 ? 'A(优秀)' : rate >= 80 ? 'B(良好)' : rate >= 70 ? 'C(中等)' : rate >= 60 ? 'D(及格)' : 'F(不及格)';
+  const gradeClass = rate >= 90 ? 'grade-a' : rate >= 80 ? 'grade-b' : rate >= 70 ? 'grade-c' : rate >= 60 ? 'grade-d' : 'grade-f';
+
   document.getElementById('q-text').innerHTML =
-    '<div style="text-align:center;padding:30px">' +
-    '<div style="font-size:48px;margin-bottom:14px">' + (rate >= 60 ? '🎉' : '📋') + '</div>' +
-    '<h2 style="margin-bottom:14px;color:' + (rate >= 60 ? 'var(--success)' : 'var(--text)') + '">' +
-    (rate >= 60 ? '太棒了！' : '继续加油！') + '</h2>' +
-    '<p style="margin:6px 0;color:var(--text-secondary)">总题：<strong>' + qs.length + '</strong> | 已答：<strong>' + answered + '</strong></p>' +
-    '<p style="margin:6px 0;color:var(--text-secondary)">正确：<strong>' + correct + '</strong> | 正确率：<strong>' + rate + '%</strong></p>' +
+    '<div class="report-wrap" style="padding:10px">' +
+    '<div style="font-size:48px;margin-bottom:14px;text-align:center">' + (rate >= 60 ? '🎉' : '📋') + '</div>' +
+    '<h2 style="margin-bottom:8px;color:' + (rate >= 60 ? 'var(--success)' : 'var(--text)') + ';text-align:center">' +
+    (rate >= 60 ? '太棒了，测试完成！' : '继续加油！') + '</h2>' +
+    '<div style="text-align:center"><span class="report-grade ' + gradeClass + '">' + grade + '</span></div>' +
+    '<div class="report-stats" style="justify-content:center;margin:16px 0">' +
+    '<div class="report-stat-item"><div class="report-stat-num">' + qs.length + '</div><div class="report-stat-label">总题数</div></div>' +
+    '<div class="report-stat-item"><div class="report-stat-num" style="color:#059669">' + correct + '</div><div class="report-stat-label">✅ 正确</div></div>' +
+    '<div class="report-stat-item"><div class="report-stat-num" style="color:#dc2626">' + (answered - correct) + '</div><div class="report-stat-label">❌ 错误</div></div>' +
+    '<div class="report-stat-item"><div class="report-stat-num">' + rate + '%</div><div class="report-stat-label">📊 正确率</div></div>' +
+    '</div>' +
     '<div style="margin-top:20px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">' +
     '<button class="btn btn-primary" onclick="startMode(\'' + mode + '\')">🔄 再来一轮</button>' +
     '<button class="btn btn-ghost" onclick="showModeSelect()">← 换模式</button></div></div>';
@@ -1065,6 +1149,9 @@ function showFinish() {
   document.getElementById('btn-retry').style.display = 'none';
   document.getElementById('btn-save').style.display = 'none';
   document.getElementById('q-fb').style.display = 'none';
+  // Hide qnav
+  const qnav = document.getElementById('qnav-wrap');
+  if (qnav) qnav.style.display = 'none';
   document.getElementById('pbar-fill').style.width = '100%';
   document.getElementById('p-progress').textContent = '完成！';
 }
@@ -1106,7 +1193,7 @@ async function loadBank() {
         (role === 'admin' && si < subjects.length - 1 ?
           '<span onclick="event.stopPropagation();reorderSub(' + s.id + ',\'down\')" style="cursor:pointer;color:var(--primary);font-size:16px;font-weight:bold;padding:2px 6px" title="下移">▼</span>'
           : '<span style="width:26px"></span>') +
-        (role === 'admin' && s.name !== '默认科目' ?
+        (role === 'admin' ?
           '<span onclick="event.stopPropagation();editSubject(' + s.id + ',\'' + escAttr(s.name) + '\')" style="cursor:pointer;color:var(--text-secondary);font-size:12px">编辑</span>' +
           '<span onclick="event.stopPropagation();delSubject(' + s.id + ',\'' + escAttr(s.name) + '\')" style="cursor:pointer;color:var(--danger);font-size:12px">删除</span>'
           : '') +
@@ -1182,8 +1269,7 @@ function editSubject(sid, oldName) {
 }
 
 function delSubject(sid, name) {
-  if (name === '默认科目') { toast('⚠️ 默认科目为系统保留科目，无法删除'); return; }
-  if (!confirm('确定要删除科目「' + name + '」？其下题目将移至默认科目')) return;
+  if (!confirm('确定要删除科目「' + name + '」？其下题目将一并删除')) return;
   fetch('/api/subjects/' + sid, { method: 'DELETE' })
     .then(r => r.json()).then(d => {
       if (d.error) { toast('删除失败：' + d.error); return; }
@@ -1433,6 +1519,420 @@ function submitName() {
     })
     .catch(() => { errEl.textContent='网络错误'; errEl.style.display='block'; });
 }
+// ==================== Library / Book Browse (学科书籍浏览) ====================
+
+/* 大学教材/书籍数据 - 按学科分类 */
+const LIBRARY_DATA = [
+  {
+    cat: "理工科", icon: "🔬",
+    books: [
+      {id:"lib_gaoshu", name:"高等数学(同济版)", desc:"极限、导数、积分、级数、微分方程", tag:"math", subMatch:["数学","高数","微积分"]},
+      {id:"lib_xianxing", name:"线性代数", desc:"行列式、矩阵、向量空间、特征值、二次型", tag:"math", subMatch:["数学","线性代数","线代"]},
+      {id:"lib_gailv", name:"概率论与数理统计", desc:"随机事件、分布函数、期望方差、大数定律", tag:"math", subMatch:["数学","概率论","概率"]},
+      {id:"lib_wuli", name:"大学物理", desc:"力学、热学、电磁学、光学、近代物理", tag:"physics", subMatch:["物理","大学物理"]},
+      {id:"lib_huaxue", name:"普通化学原理", desc:"原子结构、化学键、热力学、动力学、平衡", tag:"chemistry", subMatch:["化学","普化"]},
+      {id:"lib_shujujiegou", name:"数据结构(C语言版)", desc:"线性表、树、图、排序、查找算法", tag:"cs", subMatch:["计算机","数据结构","算法"]},
+      {id:"lib_zuchengyuanli", name:"计算机组成原理", desc:"数据表示、指令系统、CPU、存储器、I/O", tag:"cs", subMatch:["计算机","组成原理","计组"]},
+      {id:"lib_caozuo", name:"操作系统概念", desc:"进程管理、内存管理、文件系统、IO管理", tag:"cs", subMatch:["计算机","操作系统","OS"]},
+      {id:"lib_wangluo", name:"计算机网络(谢希仁)", desc:"物理层、数据链路层、网络层、传输层、应用层", tag:"cs", subMatch:["计算机","网络","计网"]},
+    ]
+  },
+  {
+    cat: "文史哲法", icon: "📜",
+    books: [
+      {id:"lib_make", name:"马克思主义基本原理概论", desc:"唯物论、辩证法、认识论、唯物史观、政治经济学", tag:"politics", subMatch:["政治","马原","马克思"]},
+      {id:"lib_jindaishi", name:"中国近现代史纲要", desc:"鸦片战争到改革开放，重大事件与历史规律", tag:"history", subMatch:["历史","近现代史","史纲"]},
+      {id:"lib_sixiu", name:"思想道德修养与法律基础", desc:"人生观价值观、道德规范、法治理念", tag:"politics", subMatch:["政治","思修","思法"]},
+      {id:"lib_faxue", name:"法学导论", desc:"宪法、民法、刑法、诉讼法基础知识", tag:"law", subMatch:["法律","法学","法制"]},
+      {id:"lib_zhexue", name:"哲学通论", desc:"本体论、认识论、伦理学、美学入门", tag:"philosophy", subMatch:["哲学","哲导"]},
+    ]
+  },
+  {
+    cat: "经管类", icon: "💰",
+    books: [
+      {id:"lib_weiguan", name:"微观经济学", desc:"供求理论、消费者行为、生产成本、市场结构", tag:"econ", subMatch:["经济","微观","西方经济学"]},
+      {id:"lib_hongguan", name:"宏观经济学", desc:"GDP核算、IS-LM模型、通胀失业、财政货币政策", tag:"econ", subMatch:["经济","宏观","西经"]},
+      {id:"lib_guanli", name:"管理学原理", desc:"计划、组织、领导、控制四大职能", tag:"mgmt", subMatch:["管理","管理学"]},
+      {id:"lib_kuaiji", name:"基础会计学", desc:"会计要素、借贷记账法、财务报表编制", tag:"accounting", subMatch:["会计","财会"]},
+      {id:"lib_yingxiao", name:"市场营销学", desc:"市场调研、4P策略、品牌管理、数字营销", tag:"mgmt", subMatch:["营销","市场营销"]},
+    ]
+  },
+  {
+    cat: "医学", icon: "🏥",
+    books: [
+      {id:"lib_jiepou", name:"系统解剖学", desc:"运动系统、内脏学、脉管系统、神经系统、感觉器", tag:"med", subMatch:["医学","解剖","解剖学"]},
+      {id:"lib_shengli", name:"生理学", desc:"细胞功能、内环境稳态、神经调节、体液调节", tag:"med", subMatch:["医学","生理","生理学"]},
+      {id:"lib_shenghua", name:"生物化学与分子生物学", desc:"蛋白质、核酸、糖代谢、脂代谢、基因表达", tag:"med", subMatch:["医学","生化","生物化学"]},
+      {id:"lib_bingli", name:"病理生理学", desc:"疾病病因发病机制、水电解质失衡、休克、缺氧", tag:"med", subMatch:["医学","病理","病生"]},
+      {id:"lib_neike", name:"内科学", desc:"呼吸循环消化泌尿血液内分泌各系统疾病诊治", tag:"med", subMatch:["医学","内科","内科学"]},
+    ]
+  },
+  {
+    cat: "语言文学", icon: "📖",
+    books: [
+      {id:"lib_cet4", name:"大学英语四级(CET-4)", desc:"听力理解、阅读理解、写作翻译综合训练", tag:"lang", subMatch:["英语","CET-4","四级","英语四"]},
+      {id:"lib_cet6", name:"大学英语六级(CET-6)", desc:"更高难度听力阅读、快速阅读、深度翻译", tag:"lang", subMatch:["英语","CET-6","六级","英语六"]},
+      {id:"lib_xiandaihy", name:"现代汉语", desc:"语音文字词汇语法修辞，现代汉语规范化", tag:"lang", subMatch:["语文","汉语","现代汉语"]},
+      {id:"lib_gudaihy", name:"古代汉语", desc:"汉字发展、古今词义异同、文言文阅读", tag:"lang", subMatch:["语文","古代汉语","古汉语"]},
+      {id:"lib_xiezuo", name:"写作基础", desc:"记叙文议论文说明文应用文写作技巧与方法", tag:"lang", subMatch:["语文","写作"]},
+      ]
+  }
+];
+
+function showLibHome() {
+  document.getElementById('libPage').style.display = 'block';
+  document.getElementById('bookQuizArea').style.display = 'none';
+  document.getElementById('bookReportArea').style.display = 'none';
+  renderLib();
+}
+
+function renderLib() {
+  const c = document.getElementById('libContent');
+  let h = '';
+  LIBRARY_DATA.forEach(cat => {
+    h += '<div class="lib-cat">';
+    h += `<div class="lib-cat-header"><span class="lib-cat-icon">${cat.icon}</span><span class="lib-cat-name">${escHtml(cat.cat)}</span><span class="lib-cat-count">${cat.books.length}本</span></div>`;
+    h += '<div class="lib-grid">';
+    cat.books.forEach(book => {
+      const qCount = getBookQCount(book);
+      h += `<div class="lib-card" onclick="startBookQuiz('${book.id}')">`;
+      h += `<div class="lib-card-title">${escHtml(book.name)}</div>`;
+      h += `<div class="lib-card-desc">${escHtml(book.desc)}</div>`;
+      h += `<span class="lib-card-tag ${book.tag}">${qCount > 0 ? qCount + ' 道题目' : '暂无题目'}</span>`;
+      h += `<div class="lib-card-action">开始测试 →</div></div>`;
+    });
+    h += '</div></div>';
+  });
+  c.innerHTML = h;
+}
+
+function getBookQCount(book) {
+  // Count questions that match this book's subject keywords
+  let count = 0;
+  for (let i = 0; i < allSubs.length; i++) {
+    for (let j = 0; j < book.subMatch.length; j++) {
+      if (allSubs[i].name.indexOf(book.subMatch[j]) >= 0) {
+        count += (allSubs[i].count || 0);
+        break;
+      }
+    }
+  }
+  return count;
+}
+
+function findBookById(id) {
+  for (const cat of LIBRARY_DATA) {
+    for (const book of cat.books) {
+      if (book.id === id) return book;
+    }
+  }
+  return null;
+}
+
+// ==================== Book Quiz Logic (书籍测试) ====================
+let bookQs = [], bookIdx = 0, bookAnsMap = {}, currentBook = null;
+
+async function startBookQuiz(bookId) {
+  currentBook = findBookById(bookId);
+  if (!currentBook) return;
+
+  // Find matching subjects
+  let matchSubs = [];
+  for (let i = 0; i < allSubs.length; i++) {
+    for (let j = 0; j < (currentBook.subMatch || []).length; j++) {
+      if (allSubs[i].name.indexOf(currentBook.subMatch[j]) >= 0) {
+        matchSubs.push(allSubs[i].name);
+        break;
+      }
+    }
+  }
+
+  try {
+    let url = '/api/questions/practice/';
+    if (matchSubs.length > 0) {
+      url += encodeURIComponent(matchSubs[0]);
+    } else {
+      url += '__all__';
+    }
+
+    const r = await fetch(url);
+    bookQs = await r.json();
+    bookIdx = 0;
+    bookAnsMap = {};
+
+    if (!bookQs.length) {
+      alert('该书籍暂无题目，请先导入相关题库！');
+      return;
+    }
+
+    document.getElementById('libPage').style.display = 'none';
+    document.getElementById('bookQuizArea').style.display = 'block';
+    document.getElementById('bookReportArea').style.display = 'none';
+    document.getElementById('bookQuizBadge').textContent = '📚 ' + currentBook.name;
+
+    buildBookQNav();
+    showBookQ();
+  } catch(e) {
+    console.error(e);
+    toast('加载失败');
+  }
+}
+
+function buildBookQNav() {
+  const grid = document.getElementById('bookQNavGrid');
+  const wrap = document.getElementById('bookQNavWrap');
+  if (!grid || !wrap) return;
+  wrap.style.display = bookQs.length > 1 ? 'flex' : 'none';
+
+  let html = '';
+  for (let i = 0; i < bookQs.length; i++) {
+    html += `<div class="qnav-item unanswered" id="bnav${i}" onclick="jumpToBookQ(${i})">${i + 1}</div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function updateBookQNav() {
+  for (let i = 0; i < bookQs.length; i++) {
+    const el = document.getElementById('bnav' + i);
+    if (!el) continue;
+    el.className = 'qnav-item';
+    if (i === bookIdx) el.classList.add('current');
+    if (bookAnsMap.hasOwnProperty(i)) {
+      el.classList.add(bookAnsMap[i] ? 'answered' : 'wrong-ans');
+    } else {
+      el.classList.add('unanswered');
+    }
+  }
+}
+
+function jumpToBookQ(i) {
+  if (i >= 0 && i < bookQs.length) {
+    bookIdx = i;
+    showBookQ();
+  }
+}
+
+function showBookQ() {
+  if (bookIdx >= bookQs.length) { showBookReport(); return; }
+  const q = bookQs[bookIdx];
+
+  // Badge
+  const badge = document.getElementById('bookQBadge');
+  badge.textContent = getType(q.type);
+  badge.className = 'q-badge ' + q.type;
+
+  document.getElementById('bookQNum').textContent = (bookIdx + 1) + '/' + bookQs.length;
+  document.getElementById('bookQText').innerHTML = '<span style="color:var(--primary);font-weight:700;margin-right:6px">第' + (bookIdx + 1) + '题</span>' + escHtml(q.question || '(空)');
+
+  // Progress
+  document.getElementById('bookPbarFill').style.width = ((bookIdx + 1) / bookQs.length * 100) + '%';
+  document.getElementById('bookPProgress').textContent = Math.round((bookIdx + 1) / bookQs.length * 100) + '%';
+
+  // Stats
+  let answered = Object.keys(bookAnsMap).length;
+  let correct = Object.values(bookAnsMap).filter(v => v).length;
+  const statsStr = answered ? '已答 ' + answered + ' | 正确 ' + correct + ' | 正确率 ' + Math.round(correct / answered * 100) + '%' : '准备开始...';
+  document.getElementById('bookPStats').textContent = statsStr;
+
+  // Reset UI
+  document.getElementById('bookQFb').style.display = 'none';
+  document.getElementById('bookBtnSubmit').style.display = 'inline-flex';
+  document.getElementById('bookBtnSubmit').disabled = false;
+  document.getElementById('bookBtnNext').style.display = 'inline-flex';
+  document.getElementById('bookBtnRetry').style.display = 'none';
+
+  // Prev/Next buttons
+  document.getElementById('bookBtnPrev').style.display = bookIdx > 0 ? 'inline-flex' : 'none';
+  document.getElementById('bookBtnNext').style.display = (bookIdx < bookQs.length - 1) ? 'inline-flex' : 'none';
+
+  // Options or fill-in
+  const optsDiv = document.getElementById('bookQOpts');
+  const fillIn = document.getElementById('bookQFill');
+
+  if (q.type === 'fill' || q.type === 'essay') {
+    optsDiv.innerHTML = '';
+    fillIn.style.display = 'block';
+    fillIn.value = '';
+    fillIn.focus();
+  } else {
+    fillIn.style.display = 'none';
+    let opts = q.options || [];
+    if (q.type === 'judge' && (!opts || !opts.length)) opts = ['正确', '错误'];
+    if ((q.type === 'single' || q.type === 'multiple') && (!opts || !opts.length)) {
+      optsDiv.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);background:var(--bg);border-radius:var(--radius-sm)">⚠️ 此题暂无选项</div>';
+    } else {
+      let html = '';
+      for (let i = 0; i < opts.length; i++) {
+        const L = String.fromCharCode(65 + i);
+        html += '<div class="opt-item" data-v="' + L + '" onclick="bookPickOpt(this)">' +
+          '<span class="opt-letter">' + L + '</span>' +
+          '<span>' + escHtml(opts[i] || '') + '</span></div>';
+      }
+      optsDiv.innerHTML = html;
+    }
+  }
+
+  updateBookQNav();
+  window.bookCurAns = null;
+}
+
+function bookPickOpt(el) {
+  const q = bookQs[bookIdx];
+  if (q.type === 'multiple') {
+    el.classList.toggle('selected');
+    const sel = [];
+    document.querySelectorAll('#bookQOpts .opt-item.selected').forEach(o => sel.push(o.dataset.v));
+    window.bookCurAns = sel.sort().join('');
+    if (sel.length > 0) bookSubmit();
+  } else {
+    document.querySelectorAll('#bookQOpts .opt-item').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    window.bookCurAns = el.dataset.v;
+    bookSubmit();
+  }
+}
+
+async function bookSubmit() {
+  const q = bookQs[bookIdx];
+  let a = window.bookCurAns;
+  if (!a) {
+    if (q.type === 'fill' || q.type === 'essay') a = document.getElementById('bookQFill').value.trim();
+  }
+  if (!a) { toast('请先选择或输入答案'); return; }
+
+  document.getElementById('bookBtnSubmit').disabled = true;
+
+  try {
+    const r = await fetch('/api/check_answer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question_id: q.id, answer: a, display_name: currentUserName || '' })
+    });
+    const d = await r.json();
+
+    bookAnsMap[bookIdx] = d.is_correct;
+
+    showBookFeedback(d.is_correct, d.correct_answer, d.explanation, q);
+    document.getElementById('bookBtnSubmit').style.display = 'none';
+    document.getElementById('bookBtnNext').style.display = 'inline-flex';
+    document.getElementById('bookBtnRetry').style.display = 'inline-flex';
+    updateBookQNav();
+  } catch(e) {
+    console.error(e);
+    toast('提交失败');
+  }
+}
+
+function showBookFeedback(ok, correctAns, explanation, q) {
+  const fb = document.getElementById('bookQFb');
+  if (ok) {
+    fb.className = 'fb correct';
+    fb.innerHTML = '<i>✅</i> <strong>回答正确！</strong>' +
+      (explanation ? '<div style="margin-top:8px;opacity:.8;font-size:13px">💡 ' + escHtml(explanation) + '</div>' : '');
+  } else {
+    fb.className = 'fb wrong';
+    fb.innerHTML = '<i>❌</i> <strong>回答错误</strong><div style="margin-top:6px">正确答案：<strong>' + escHtml(correctAns) + '</strong></div>' +
+      (explanation ? '<div style="margin-top:8px;opacity:.8;font-size:13px">💡 ' + escHtml(explanation) + '</div>' : '');
+    document.querySelectorAll('#bookQOpts .opt-item').forEach(o => {
+      if (String(q.answer).indexOf(o.dataset.v) >= 0) o.classList.add('correct');
+      else if (o.classList.contains('selected')) o.classList.add('wrong');
+    });
+  }
+  fb.style.display = 'block';
+}
+
+function bookPrev() { if (bookIdx > 0) { bookIdx--; showBookQ(); } }
+function bookNext() { bookIdx++; showBookQ(); }
+function bookRetry() { showBookQ(); }
+
+function showBookReport() {
+  document.getElementById('bookQuizArea').style.display = 'none';
+  document.getElementById('libPage').style.display = 'none';
+  const reportArea = document.getElementById('bookReportArea');
+  reportArea.style.display = 'block';
+
+  const total = bookQs.length;
+  let correct = 0, wrongItems = [];
+  for (const [idx, isCorrect] of Object.entries(bookAnsMap)) {
+    if (isCorrect) correct++;
+    else wrongItems.push({ idx: parseInt(idx), ...bookQs[idx], userAnswer: '' });
+  }
+  const wrong = total - correct;
+  const score = total > 0 ? Math.round(correct / total * 100, 1) : 0;
+  const grade = score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 70 ? 'C' : score >= 60 ? 'D' : 'F';
+  const gradeLabel = {A:'优秀', B:'良好', C:'中等', D:'及格', F:'不及格'}[grade];
+  const gradeClass = 'grade-' + grade.toLowerCase();
+
+  let html = '<div class="report-wrap">';
+  // Score circle
+  html += '<div class="report-score-circle" style="' + (score >= 60 ? 'background:linear-gradient(135deg,#d1fae5,#a7f3d0)' : 'background:linear-gradient(135deg,#fee2e2,#fecaca') + '")>';
+  html += '<span class="report-score-num" style="color:' + (score >= 60 ? '#059669' : '#dc2626') + '">' + score + '</span>';
+  html += '<span class="report-score-label">分</span></div>';
+
+  // Grade badge
+  html += '<div class="report-grade ' + gradeClass + '">' + grade + '(' + gradeLabel + ')' + '</div>';
+
+  // Stats
+  html += '<div class="report-stats">';
+  html += '<div class="report-stat-item"><div class="report-stat-num">' + total + '</div><div class="report-stat-label">总题数</div></div>';
+  html += '<div class="report-stat-item"><div class="report-stat-num" style="color:#059669">' + correct + '</div><div class="report-stat-label">✅ 答对</div></div>';
+  html += '<div class="report-stat-item"><div class="report-stat-num" style="color:#dc2626">' + wrong + '</div><div class="report-stat-label">❌ 答错</div></div>';
+  html += '<div class="report-stat-item"><div class="report-stat-num">' + (total > 0 ? Math.round(correct / total * 100) : 0) + '%</div><div class="report-stat-label">📊 正确率</div></div>';
+  html += '</div>';
+
+  // Wrong answers review
+  if (wrongItems.length > 0) {
+    html += '<div class="report-wrong-list"><div class="report-wrong-title">❌ 错题回顾（' + wrongItems.length + '道）</div>';
+    wrongItems.forEach(wi => {
+      html += '<div class="report-wrong-item">';
+      html += '<div class="report-wq-text"><span style="color:var(--text-muted);margin-right:8px">#' + (wi.idx + 1) + '</span>' + escHtml(wi.question.substring(0, 80)) + (wi.question.length > 80 ? '...' : '') + '</div>';
+      html += '<div class="report-wq-ans"><span class="report-wq-ua">你的答案：' + (wi.userAnswer || '未记录') + '</span>';
+      html += '<span class="report-wq-ca">正确答案：' + wi.answer + '</span></div></div>';
+    });
+    html += '</div>';
+  }
+
+  // Action buttons
+  html += '<div style="display:flex;gap:12px;justify-content:center;margin-top:28px;flex-wrap:wrap">';
+  html += '<button class="btn btn-primary btn-lg" onclick="startBookQuiz(\'' + (currentBook ? currentBook.id : '') + '\')">🔄 再测一次</button>';
+  html += '<button class="btn btn-ghost" onclick="showLibHome()">⬅️ 返回书库</button>';
+  html += '</div></div>';
+
+  reportArea.innerHTML = html;
+}
+
+
+// ==================== Regular Quiz Q-Nav Enhancement (常规刷题小方块导航) ====================
+function buildQNav() {
+  const grid = document.getElementById('qnav-grid');
+  const wrap = document.getElementById('qnav-wrap');
+  if (!grid || !wrap || qs.length <= 1) { if (wrap) wrap.style.display = 'none'; return; }
+  wrap.style.display = 'flex';
+
+  let html = '';
+  for (let i = 0; i < qs.length; i++) {
+    html += '<div class="qnav-item unanswered" id="rnav' + i + '" onclick="jumpToQ(' + i + ')">' + (i + 1) + '</div>';
+  }
+  grid.innerHTML = html;
+}
+
+function updateQNav() {
+  for (let i = 0; i < qs.length; i++) {
+    const el = document.getElementById('rnav' + i);
+    if (!el) continue;
+    el.className = 'qnav-item';
+    if (i === idx) el.classList.add('current');
+    // For regular quiz, we don't track per-question answers in ansMap,
+    // but we can infer from whether we're past this question
+    if (i < idx && typeof ans !== 'undefined' && ans !== null) el.classList.add('answered');
+    else if (i === idx) el.classList.add('current');
+    else el.classList.add('unanswered');
+  }
+}
+
+function jumpToQ(i) { if (i >= 0 && i < qs.length) { idx = i; showQ(); } }
+
+
 </script>
 </body>
 </html>

@@ -450,13 +450,12 @@ function renderSubjects(subs){
   const a=document.getElementById('subArea');
   let h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px">';
   subs.forEach((s,i)=>{
-    const isDefault=s.name==='默认科目';
     h+=`<div class="si">
-      <input type="checkbox" class="scb" value="${s.id}" onchange="updSubSel()" ${isDefault?'disabled title="系统保留"':''}>
-      <span class="si-name">${esc(s.name)}${isDefault?' <span style="font-size:10px;color:var(--tm);font-weight:normal">(系统保留)</span>':''}</span>
+      <input type="checkbox" class="scb" value="${s.id}" onchange="updSubSel()">
+      <span class="si-name">${esc(s.name)}</span>
       <span class="si-count">${s.count}题</span>
       <div class="si-actions">
-        ${!isDefault?`<button class="dbtn-danger-sm" onclick="delOneSub(${s.id},'${ea(s.name)}')">🗑</button>`:''}
+        <button class="dbtn-danger-sm" onclick="delOneSub(${s.id},'${ea(s.name)}')">🗑</button>
       </div>
     </div>`;
   });
@@ -465,7 +464,7 @@ function renderSubjects(subs){
   updSubSel();
 }
 function updSubSel(){
-  const n=document.querySelectorAll('.scb:not(:disabled):checked').length;
+  const n=document.querySelectorAll('.scb:checked').length;
   document.getElementById('bsBtn').textContent='🗑️ 批量删科目'+(n?'('+n+')':'');
   document.getElementById('bsBtn').disabled=!n;
 }
@@ -480,7 +479,7 @@ async function delOneSub(id,name){
 }
 
 async function batchDelSubs(){
-  const ids=[...document.querySelectorAll('.scb:not(:disabled):checked')].map(cb=>parseInt(cb.value));
+  const ids=[...document.querySelectorAll('.scb:checked')].map(cb=>parseInt(cb.value));
   if(!ids.length){toast('请先选择科目');return;}
   if(!confirm(`确定删除 ${ids.length} 个科目及其所有题目？`))return;
   const b=document.getElementById('bsBtn');b.disabled=true;b.textContent='⏳...';

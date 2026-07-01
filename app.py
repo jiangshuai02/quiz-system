@@ -679,24 +679,20 @@ def reorder_subjects():
 @app.route('/api/subjects/<int:sid>', methods=['DELETE'])
 @login_required
 def delete_subject_api(sid):
-    """删除科目（同时将其下题目移到默认科目）"""
+    """删除科目（同时将其下题目移到其他科目或一并删除）"""
     if current_user.role != 'admin':
         return jsonify({'error': '需要管理员权限'}), 403
     sub = Subject.query.get(sid)
     if not sub:
         return jsonify({'error': '科目不存在'}), 404
-    # 防止删除"默认科目"（系统保留科目）
-    if sub.name == '\u9ed8\u8ba4\u79d1\u76ee':
-        return jsonify({'error': '「默认科目」为系统保留科目，无法删除'}), 400
     count = Question.query.filter(Question.subject_id == sid).count()
-    # 将题目移至默认科目
-    default_sub = Subject.query.filter_by(name='\u9ed8\u8ba4\u79d1\u76ee').first()
-    if default_sub:
-        for q in Question.query.filter(Question.subject_id == sid).all():
-            q.subject_id = default_sub.id
+    # 删除题目及其关联的records（先清除外键）
+    for q in Question.query.filter(Question.subject_id == sid).all():
+        Record.query.filter_by(question_id=q.id).delete()
+        db.session.delete(q)
     db.session.delete(sub)
     db.session.commit()
-    return jsonify({'success': True, 'count': count, 'message': f'已删除"{sub.name}"，{count}道题已移至默认科目'})
+    return jsonify({'success': True, 'count': count, 'message': f'已删除「{sub.name}」及其下{count}道题'})
 
 
 @app.route('/api/questions/by_subject/<subject_name>')
@@ -1288,7 +1284,8 @@ def search_questions():
     if kw:
         query = query.filter(Question.question.ilike(f'%{kw}%') | Question.answer.ilike(f'%{kw}%'))
     if sub:
-        query = query.filter((Question.subject_name == sub) | (Subject.name == sub).any())
+        # Support both subject_name and Subject.name matching
+        query = query.filter((Question.subject_name == sub) | (Question.subject_id == db.session.query(Subject.id).filter(Subject.name == sub).scalar_subquery()))
     if qt:
         query = query.filter(Question.type == qt)
 
@@ -1545,10 +1542,6 @@ def delete_subject():
 
     if not subject_name:
         return jsonify({'error': '科目名称不能为空'}), 400
-
-    # 防止删除默认科目
-    if subject_name == '\u9ed8\u8ba4\u79d1\u76ee':
-        return jsonify({'error': '「默认科目」为系统保留科目，无法删除'}), 400
 
     # 先检查Subject表
     sub = Subject.query.filter_by(name=subject_name).first()

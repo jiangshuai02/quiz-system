@@ -55,6 +55,7 @@ class Subject(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True, nullable=False)  # 科目名称，唯一
     description = db.Column(db.String(200))  # 可选描述
+    sort_order = db.Column(db.Integer, default=0)  # 排序顺序（越小越靠前）
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
@@ -120,6 +121,7 @@ def migrate_db():
     # 2. 检查questions表是否有subject_id列
     has_subject_id = False
     has_subject_name = False
+    has_sort_order = False
     if 'questions' in table_names:
         columns = [col['name'] for col in inspector.get_columns('questions')]
         has_subject_id = 'subject_id' in columns
@@ -134,6 +136,19 @@ def migrate_db():
             print("MIGRATE: Adding subject_name column to questions...")
             db.session.execute(
                 sa.text("ALTER TABLE questions ADD COLUMN subject_name VARCHAR(100) DEFAULT '默认科目'")
+            )
+
+    # 2b. 检查subjects表是否有sort_order列
+    if 'subjects' in table_names:
+        sub_cols = [col['name'] for col in inspector.get_columns('subjects')]
+        has_sort_order = 'sort_order' in sub_cols
+        if not has_sort_order:
+            print("MIGRATE: Adding sort_order column to subjects...")
+            db.session.execute(
+                sa.text("ALTER TABLE subjects ADD COLUMN sort_order INTEGER DEFAULT 0")
+            )
+            db.session.execute(
+                sa.text("UPDATE subjects SET sort_order = id WHERE sort_order IS NULL OR sort_order = 0")
             )
 
     # 3. 创建默认科目
@@ -463,7 +478,12 @@ def parse_word(path):
 @app.route('/')
 def index():
     if not current_user.is_authenticated:
-        return redirect(url_for('login'))
+        # 自动以admin身份登录（无需手动登录）
+        admin = User.query.filter_by(username='admin').first()
+        if admin:
+            login_user(admin)
+        else:
+            return redirect(url_for('login'))
     return render_template('index.html')
 
 @app.route('/login', methods=['GET','POST'])
@@ -523,8 +543,8 @@ def get_qs():
 @app.route('/api/subjects')
 @login_required
 def get_subjects():
-    """获取所有科目列表（从独立科目表）"""
-    subjects = Subject.query.order_by(Subject.id.asc()).all()
+    """获取所有科目列表（按sort_order排序）"""
+    subjects = Subject.query.order_by(Subject.sort_order.asc(), Subject.id.asc()).all()
     result = []
     for sub in subjects:
         count = db.session.query(Question).filter(Question.subject_id == sub.id).count()
@@ -532,7 +552,8 @@ def get_subjects():
             'id': sub.id,
             'name': sub.name,
             'description': sub.description or '',
-            'count': count
+            'count': count,
+            'sort_order': sub.sort_order or 0
         })
     return jsonify(result)
 
@@ -589,6 +610,38 @@ def update_subject(sid):
         sub.description = d.get('description', '').strip()
     db.session.commit()
     return jsonify({'success': True, 'id': sub.id, 'name': sub.name})
+
+
+@app.route('/api/subjects/reorder', methods=['POST'])
+@login_required
+def reorder_subjects():
+    """调整科目顺序（上移/下移）"""
+    if current_user.role != 'admin':
+        return jsonify({'error': '需要管理员权限'}), 403
+    d = request.json
+    subject_id = d.get('id')
+    direction = d.get('direction', '')  # 'up' or 'down'
+    if not subject_id or direction not in ('up', 'down'):
+        return jsonify({'error': '参数错误'}), 400
+
+    sub = Subject.query.get(subject_id)
+    if not sub:
+        return jsonify({'error': '科目不存在'}), 404
+
+    if direction == 'up':
+        # 找到当前科目前面一个sort_order更小的科目，交换位置
+        prev = Subject.query.filter(Subject.sort_order < sub.sort_order).order_by(Subject.sort_order.desc()).first()
+        if prev:
+            prev.sort_order, sub.sort_order = sub.sort_order, prev.sort_order
+            db.session.commit()
+    else:
+        # 找到后面一个sort_order更大的科目，交换位置
+        next_sub = Subject.query.filter(Subject.sort_order > sub.sort_order).order_by(Subject.sort_order.asc()).first()
+        if next_sub:
+            next_sub.sort_order, sub.sort_order = sub.sort_order, next_sub.sort_order
+            db.session.commit()
+
+    return jsonify({'success': True})
 
 
 @app.route('/api/subjects/<int:sid>', methods=['DELETE'])

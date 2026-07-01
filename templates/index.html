@@ -226,15 +226,59 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
 
 /* ========== Responsive ========== */
 @media(max-width:640px){
-  .topbar{padding:12px 16px}
-  .app{padding:0 10px}
-  .nav-item{padding:8px 14px;font-size:13px}
-  .mode-grid{grid-template-columns:1fr 1fr;gap:10px}
-  .q-card{padding:20px 16px}
-  .q-text{font-size:15px}
+  .topbar{padding:10px 14px}
+  .app{padding:0 10px;min-height:100vh}
+  .nav{margin:12px 0;padding:2px;border-radius:var(--radius-sm);gap:2px}
+  .nav-item{padding:8px 12px;font-size:13px;border-radius:6px;flex:1;text-align:center}
+  .mode-grid{grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+  .mode-card{padding:16px 12px}
+  .mode-icon{font-size:28px;margin-bottom:6px}
+  .mode-name{font-size:14px}
+  .mode-desc{font-size:12px;display:none}
+  .q-card{padding:18px 14px}
+  .q-text{font-size:15px;line-height:1.7}
+  .q-head{flex-direction:column;align-items:flex-start;gap:4px}
+  .opt-item{padding:11px 13px;font-size:14px}
+  .opt-letter{width:28px;height:28px;font-size:13px}
+  .btn-row{gap:8px}
+  .btn{padding:9px 16px;font-size:13px}
+  .btn-lg{padding:11px 22px;font-size:15px;width:100%;justify-content:center}
+  .btn-sm{padding:7px 14px;font-size:12px}
+  #btn-prev,#btn-next{flex:0 0 auto!important}
+  form input,form select,form textarea{font-size:15px}
   .form-grid{grid-template-columns:1fr}
-  .stat-grid{grid-template-columns:1fr 1fr}
-  .mini-qt{max-width:150px}
+  .stat-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .stat-num{font-size:1.8em}
+  .mini-q{flex-direction:column;align-items:flex-start;gap:4px;padding:10px 12px}
+  .mini-qt{max-width:none;white-space:normal;font-size:13px}
+  .mini-meta{width:100%;justify-content:flex-end}
+  .subject-card-header{padding:12px 14px}
+  .subject-name{font-size:14px}
+  .upload-zone{padding:30px 16px}
+  .upload-zone .icon{font-size:36px}
+  .upload-zone .text{font-size:14px}
+  .imp-sub-row{flex-direction:column}
+  .imp-sub-row select,.imp-sub-row input{width:100%}
+  .quiz-top{margin-bottom:14px}
+  .section-title{font-size:16px}
+  .pbar{height:5px}
+  .ptext{font-size:12px}
+  .empty-state{padding:40px 16px}
+  .empty-state .icon{font-size:40px}
+  /* 手机端导航栏可横向滚动 */
+  .main-nav::-webkit-scrollbar{display:none}
+  /* 隐藏不需要的元素 */
+  .memo-box{padding:12px 14px}
+  .memo-ans{font-size:16px}
+  .fb{padding:12px 14px;font-size:13px}
+}
+
+@media(max-width:400px){
+  .nav-item{padding:7px 8px;font-size:12px}
+  .q-text{font-size:14px}
+  .opt-item{padding:9px 11px;font-size:13px}
+  .mode-grid{grid-template-columns:1fr}
+  .stat-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -244,8 +288,7 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
 <div class="topbar">
   <div class="topbar-left"><span>📚</span> 智能刷题系统</div>
   <div class="topbar-right">
-    <span class="user-badge" id="user-badge">用户</span>
-    <a href="/logout">退出</a>
+    <!-- 简洁顶栏 -->
   </div>
 </div>
 
@@ -331,7 +374,7 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
         <button class="btn btn-ghost btn-sm" id="btn-prev" onclick="prevQ()" style="display:none" title="上一题">← 上一题</button>
         <div style="flex:1"></div>
         <button class="btn btn-primary btn-lg" id="btn-submit" onclick="submitAns()">✓ 提交答案</button>
-        <button class="btn btn-success btn-lg" id="btn-next" onclick="nextQ()" style="display:none">下一题 →</button>
+        <button class="btn btn-success btn-lg" id="btn-next" onclick="nextQ()">下一题 →</button>
         <button class="btn btn-default" id="btn-retry" onclick="retryQ()" style="display:none">↻ 重做</button>
         <button class="btn btn-ghost" id="btn-save" onclick="saveProgress()" style="display:none">💾 保存进度</button>
       </div>
@@ -465,7 +508,17 @@ let answered = 0, correct = 0, allSubs = [];
 
 // ==================== Init ====================
 document.addEventListener('DOMContentLoaded', async () => {
-  await checkAuth();
+  // 自动获取用户信息
+  try {
+    const r = await fetch('/api/me');
+    const d = await r.json();
+    role = d.role || 'admin';
+  } catch(e) { role = 'admin'; }
+
+  // 显示admin元素（因为自动登录为admin）
+  document.querySelectorAll('.admin-only').forEach(e => { e.style.display = 'block'; e.classList.remove('admin-only'); });
+
+  // 加载科目
   await loadSubs();
 
   // Nav click handling
@@ -485,15 +538,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     uz.ondragleave = () => { uz.style.borderColor = ''; uz.style.background = ''; };
     uz.ondrop = e => { e.preventDefault(); uz.style.borderColor = ''; uz.style.background = ''; if (e.dataTransfer.files[0]) uploadFile(e.dataTransfer.files[0]); };
   }
-
-  // Check saved progress
-  try {
-    const saved = localStorage.getItem('quiz_progress');
-    if (saved) {
-      const p = JSON.parse(saved);
-      toast('上次进度：' + (p.mode === 'sequential' ? '顺序答题' : '') + '，点击「顺序答题」可恢复');
-    }
-  } catch(e) {}
 });
 
 // ==================== Auth ====================
@@ -644,13 +688,15 @@ function showQ() {
   document.getElementById('q-fb').style.display = 'none';
   document.getElementById('btn-submit').style.display = 'inline-flex';
   document.getElementById('btn-submit').disabled = false;
-  document.getElementById('btn-next').style.display = 'none';
+  document.getElementById('btn-next').style.display = 'inline-flex';
   document.getElementById('btn-retry').style.display = 'none';
 
-  // Prev/Next buttons
+  // Prev/Next buttons - always show
   const prevBtn = document.getElementById('btn-prev');
+  const nextBtn = document.getElementById('btn-next');
   prevBtn.style.display = idx > 0 ? 'inline-flex' : 'none';
-  
+  nextBtn.style.display = (idx < qs.length - 1) ? 'inline-flex' : 'none';
+
   // Save button only for sequential
   document.getElementById('btn-save').style.display = (mode === 'sequential') ? 'inline-flex' : 'none';
 
@@ -751,9 +797,6 @@ async function submitAns() {
     document.getElementById('btn-submit').style.display = 'none';
     document.getElementById('btn-next').style.display = 'inline-flex';
     document.getElementById('btn-retry').style.display = 'inline-flex';
-    // Show prev button when answered
-    const prevBtn = document.getElementById('btn-prev');
-    prevBtn.style.display = idx > 0 ? 'inline-flex' : 'none';
   } catch(e) {
     console.error(e);
     toast('提交失败，请重试');
@@ -833,33 +876,32 @@ async function loadBank() {
       return;
     }
 
-    // Read sort preference
-    const sortPref = localStorage.getItem('bank_sort') || 'asc';
-
     let html = '';
     if (role === 'admin') {
       html += '<div style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">' +
         '<button class="btn btn-success" onclick="newSubject()">+ 新建科目</button>' +
-        '<button class="btn btn-ghost btn-sm" onclick="toggleBankSort()">🔄 切换排序（当前' + (sortPref === 'asc' ? '升序↑' : '降序↓') + '）</button></div>';
-    } else if (questions.length > 0) {
-      html += '<div style="margin-bottom:14px;text-align:right">' +
-        '<button class="btn btn-ghost btn-sm" onclick="toggleBankSort()" style="font-size:12px">🔄 ' + (sortPref === 'asc' ? '升序↑' : '降序↓') + '</button></div>';
+        '</div>';
     }
 
-    subjects.forEach(s => {
-      let sqs = questions.filter(x => x.subject === s.name);
-      // Apply sort
-      if (sortPref === 'desc') sqs = sqs.reverse();
+    // Subjects already sorted by sort_order from backend
+    subjects.forEach((s, si) => {
+      const sqs = questions.filter(x => x.subject === s.name);
 
-      html += '<div class="subject-card">';
+      html += '<div class="subject-card" data-sid="' + s.id + '">';
       html += '<div class="subject-card-header" onclick="toggleSubject(this)">' +
         '<div class="left"><span class="subject-name">' + escHtml(s.name) + '</span>' +
         '<span class="subject-count">' + sqs.length + '道</span></div>' +
         '<div style="display:flex;align-items:center;gap:8px">' +
+        (role === 'admin' && si > 0 ?
+          '<span onclick="event.stopPropagation();reorderSub(' + s.id + ',\'up\')" style="cursor:pointer;color:var(--primary);font-size:16px;font-weight:bold;padding:2px 6px" title="上移">▲</span>'
+          : '<span style="width:26px"></span>') +
+        (role === 'admin' && si < subjects.length - 1 ?
+          '<span onclick="event.stopPropagation();reorderSub(' + s.id + ',\'down\')" style="cursor:pointer;color:var(--primary);font-size:16px;font-weight:bold;padding:2px 6px" title="下移">▼</span>'
+          : '<span style="width:26px"></span>') +
         (role === 'admin' && s.name !== '默认科目' ?
-          '<span onclick="event.stopPropagation();editSubject(' + s.id + ',\'' + escAttr(s.name) + '\')" style="cursor:pointer;color:var(--primary);font-size:12px">编辑</span>' +
+          '<span onclick="event.stopPropagation();editSubject(' + s.id + ',\'' + escAttr(s.name) + '\')" style="cursor:pointer;color:var(--text-secondary);font-size:12px">编辑</span>' +
           '<span onclick="event.stopPropagation();delSubject(' + s.id + ',\'' + escAttr(s.name) + '\')" style="cursor:pointer;color:var(--danger);font-size:12px">删除</span>'
-          : s.name === '默认科目' ? '<span style="font-size:11px;color:var(--text-muted);font-style:italic">系统保留</span>' : '') +
+          : '') +
         '<span class="chevron">▼</span></div></div>';
       html += '<div class="subject-card-body">';
 
@@ -868,7 +910,7 @@ async function loadBank() {
       } else {
         sqs.forEach((qi, i) => {
           html += '<div class="mini-q">' +
-            '<span class="mini-qt">' + (sortPref === 'asc' ? i + 1 : sqs.length - i) + '. [' + getType(qi.type) + '] ' + escHtml((qi.question || '').substring(0, 50)) + (qi.question && qi.question.length > 50 ? '...' : '') + '</span>' +
+            '<span class="mini-qt">' + (i + 1) + '. [' + getType(qi.type) + '] ' + escHtml((qi.question || '').substring(0, 50)) + (qi.question && qi.question.length > 50 ? '...' : '') + '</span>' +
             '<div class="mini-meta"><span class="mini-tag">' + getType(qi.type) + '</span>';
           if (role === 'admin') {
             html += '<select onchange="moveQ(' + qi.id + ',this.value)" style="padding:2px 6px;border:1px solid var(--border);border-radius:4px;font-size:11px;color:var(--text-muted)">' +
@@ -891,10 +933,11 @@ async function loadBank() {
   }
 }
 
-function toggleBankSort() {
-  const cur = localStorage.getItem('bank_sort') || 'asc';
-  localStorage.setItem('bank_sort', cur === 'asc' ? 'desc' : 'asc');
-  loadBank();
+function reorderSub(sid, direction) {
+  fetch('/api/subjects/reorder', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:sid, direction:direction}) })
+    .then(r=>r.json()).then(d=>{
+      if(d.success){ loadBank(); } else{ toast(d.error||'操作失败'); }
+    }).catch(()=>toast('操作失败'));
 }
 
 function toggleSubject(el) {

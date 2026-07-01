@@ -836,10 +836,10 @@ async function loadBank() {
         '<div class="left"><span class="subject-name">' + escHtml(s.name) + '</span>' +
         '<span class="subject-count">' + sqs.length + '道</span></div>' +
         '<div style="display:flex;align-items:center;gap:8px">' +
-        (role === 'admin' ?
+        (role === 'admin' && s.name !== '默认科目' ?
           '<span onclick="event.stopPropagation();editSubject(' + s.id + ',\'' + escAttr(s.name) + '\')" style="cursor:pointer;color:var(--primary);font-size:12px">编辑</span>' +
           '<span onclick="event.stopPropagation();delSubject(' + s.id + ',\'' + escAttr(s.name) + '\')" style="cursor:pointer;color:var(--danger);font-size:12px">删除</span>'
-          : '') +
+          : s.name === '默认科目' ? '<span style="font-size:11px;color:var(--text-muted);font-style:italic">系统保留</span>' : '') +
         '<span class="chevron">▼</span></div></div>';
       html += '<div class="subject-card-body">';
 
@@ -905,9 +905,11 @@ function editSubject(sid, oldName) {
 }
 
 function delSubject(sid, name) {
+  if (name === '默认科目') { toast('⚠️ 默认科目为系统保留科目，无法删除'); return; }
   if (!confirm('确定要删除科目「' + name + '」？其下题目将移至默认科目')) return;
   fetch('/api/subjects/' + sid, { method: 'DELETE' })
     .then(r => r.json()).then(d => {
+      if (d.error) { toast('删除失败：' + d.error); return; }
       toast(d.message || '已删除');
       loadBank(); loadSubs();
     }).catch(() => toast('删除失败'));

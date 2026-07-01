@@ -168,16 +168,21 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
 .quiz-mode-badge{background:#dbeafe;color:var(--primary-dark);padding:4px 16px;border-radius:20px;font-size:12px;font-weight:600}
 
 /* ========== Question Navigation Grid (小方块) ========== */
-.qnav-wrap{position:absolute;top:8px;right:8px;z-index:10;display:flex;flex-direction:column;align-items:center;gap:4px;background:rgba(255,255,255,.9);border:1px solid var(--border);border-radius:10px;padding:6px 5px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
-.qnav-label{font-size:9px;color:var(--text-muted);font-weight:700;margin-bottom:2px;letter-spacing:.5px;text-transform:uppercase}
-.qnav-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px}
-.qnav-item{width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;cursor:pointer;transition:all .15s;border:1.5px solid transparent}
+.qnav-wrap{position:fixed;top:120px;right:16px;z-index:50;display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:10px 8px;box-shadow:var(--shadow-lg)}
+.qnav-label{font-size:11px;color:var(--text-muted);font-weight:700;margin-bottom:4px;letter-spacing:1px;text-transform:uppercase}
+.qnav-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:3px}
+.qnav-item{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;border:2px solid transparent}
 .qnav-item.unanswered{background:#f1f5f9;color:var(--text-muted);border-color:#e2e8f0}
 .qnav-item.answered{background:var(--success-light);color:#065f46;border-color:#86efac}
 .qnav-item.wrong-ans{background:var(--danger-light);color:#991b1b;border-color:#fca5a5}
-.qnav-item.current{border-color:var(--primary);box-shadow:0 0 0 2px rgba(59,130,246,.25);transform:scale(1.15)}
+.qnav-item.current{border-color:var(--primary);box-shadow:0 0 0 3px rgba(59,130,246,.2);transform:scale(1.18);z-index:2}
 .qnav-item.current.answered{background:var(--primary);color:#fff}
 .qnav-item:hover{transform:scale(1.25);z-index:5}
+
+@media(max-width:768px){
+  .qnav-wrap{position:relative;top:auto;right:auto;margin:0 auto 12px;padding:8px 6px}
+  .qnav-item{width:26px;height:26px;font-size:11px}
+}
 
 /* ========== Bank Page ========== */
 .bank-toolbar{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
@@ -381,8 +386,7 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
   <button class="nav-item admin-only" data-page="import">📥 导入</button>
   <button class="nav-item" data-page="wrong">❌ 错题本</button>
   <button class="nav-item" data-page="stats">📊 统计</button>
-  <button class="nav-item" data-page="search">🔍 查找题目</button>
-  <button class="nav-item" data-page="exam">🎓 大学考试</button>
+  <button class="nav-item" data-page="search">🔍 查找题库</button>
   <button class="nav-item admin-only" onclick="showAdminLogin()">⚙️ 管理后台</button>
 </div>
 
@@ -445,9 +449,7 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
       </label>
     </div>
 
-    <div class="q-card" id="q-card" style="position:relative">
-      <!-- 小方块进度导航 -->
-      <div class="qnav-wrap" id="qnav-wrap" style="display:none"><div class="qnav-label">导航</div><div class="qnav-grid" id="qnav-grid"></div></div>
+    <div class="q-card" id="q-card">
       <div class="q-head">
         <span class="q-badge single" id="q-badge">单选题</span>
         <span class="q-num" id="q-num">0/0</span>
@@ -469,6 +471,7 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
         <button class="btn btn-primary btn-lg" id="btn-submit" onclick="submitAns()">✓ 提交答案</button>
         <button class="btn btn-success btn-lg" id="btn-next" onclick="nextQ()">下一题 →</button>
         <button class="btn btn-default" id="btn-retry" onclick="retryQ()" style="display:none">↻ 重做</button>
+        <button class="btn btn-primary btn-lg" id="btn-finish" onclick="showFinish()" style="display:none">🏁 提交完成</button>
         <button class="btn btn-ghost" id="btn-save" onclick="saveProgress()" style="display:none">💾 保存进度</button>
       </div>
       <div class="fb" id="q-fb"></div>
@@ -476,6 +479,12 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
 
     <div class="pbar"><div class="pbar-fill" id="pbar-fill"></div></div>
     <div class="ptext"><span id="p-stats">准备开始...</span><span id="p-progress">0%</span></div>
+
+    <!-- Fixed Q-Nav (页面右侧小方块导航) -->
+    <div class="qnav-wrap" id="qnav-wrap" style="display:none">
+      <div class="qnav-label">题目导航</div>
+      <div class="qnav-grid" id="qnav-grid"></div>
+    </div>
   </div>
 </div>
 
@@ -601,95 +610,71 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
 
 
 <!-- ======================================================================== -->
-<!-- PAGE: Library / 查找题目 (学科书籍浏览) -->
+<!-- ======================================================================== -->
+<!-- PAGE: Library / 查找题库 (学科书籍 + 自定义出题) -->
 <!-- ======================================================================== -->
 <div id="page-search" class="page">
   <div class="lib-page" id="libPage">
     <div class="section-header">
       <div>
         <div class="section-title">📚 题库浏览</div>
-        <div class="section-subtitle">按学科分类浏览专业教材，选择书籍开始测试</div>
+        <div class="section-subtitle">按学科分类浏览大学教材，选择书籍后自定义出题数量和题型</div>
       </div>
     </div>
     <div id="libContent"></div>
   </div>
 
+  <!-- Book Config Modal (出题配置弹窗) -->
+  <div class="modal-overlay" id="bookConfigModal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal-box" style="max-width:460px">
+      <span class="modal-icon">📝</span>
+      <div class="modal-title" id="bookConfigTitle">出题配置</div>
+      <div class="modal-subtitle">设置生成题目数量和题型</div>
+
+      <label style="display:block;margin:14px 0 6px;font-size:13px;font-weight:700;color:var(--text-secondary)">📊 题目数量</label>
+      <input type="number" id="bookQCount" class="modal-input" value="10" min="1" max="100">
+
+      <label style="display:block;margin:14px 0 6px;font-size:13px;font-weight:700;color:var(--text-secondary)">📋 选择题型</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+        <label style="display:flex;align-items:center;gap:5px;padding:8px 12px;background:var(--bg);border-radius:8px;cursor:pointer;font-size:13px;font-weight:600"><input type="checkbox" value="single" checked> 单选</label>
+        <label style="display:flex;align-items:center;gap:5px;padding:8px 12px;background:var(--bg);border-radius:8px;cursor:pointer;font-size:13px;font-weight:600"><input type="checkbox" value="multiple"> 多选</label>
+        <label style="display:flex;align-items:center;gap:5px;padding:8px 12px;background:var(--bg);border-radius:8px;cursor:pointer;font-size:13px;font-weight:600"><input type="checkbox" value="judge" checked> 判断</label>
+        <label style="display:flex;align-items:center;gap:5px;padding:8px 12px;background:var(--bg);border-radius:8px;cursor:pointer;font-size:13px;font-weight:600"><input type="checkbox" value="fill" checked> 填空</label>
+        <label style="display:flex;align-items:center;gap:5px;padding:8px 12px;background:var(--bg);border-radius:8px;cursor:pointer;font-size:13px;font-weight:600"><input type="checkbox" value="essay"> 简答</label>
+      </div>
+
+      <button class="modal-btn" onclick="confirmBookQuiz()">🎯 开始测试</button>
+      <button class="btn btn-ghost" style="width:100%;margin-top:10px" onclick="document.getElementById('bookConfigModal').style.display='none'">取消</button>
+    </div>
+  </div>
+
   <!-- Book Quiz Area -->
   <div id="bookQuizArea" style="display:none">
+    <div class="qnav-wrap" id="bookQNavWrap" style="display:none"><div class="qnav-label">题目导航</div><div class="qnav-grid" id="bookQNavGrid"></div></div>
     <div class="quiz-top">
-      <button class="btn btn-ghost btn-sm" onclick="showLibHome()">← 返回书籍列表</button>
+      <button class="btn btn-ghost btn-sm" onclick="showLibHome()">← 返回书库</button>
       <span class="quiz-mode-badge" id="bookQuizBadge">正在测试...</span>
     </div>
-    <!-- 小方块导航 -->
-    <div style="position:relative">
-      <div class="qnav-wrap" id="bookQNavWrap"><div class="qnav-label">导航</div><div class="qnav-grid" id="bookQNavGrid"></div></div>
-      <div class="q-card">
-        <div class="q-head">
-          <span class="q-badge single" id="bookQBadge">单选题</span>
-          <span class="q-num" id="bookQNum">0/0</span>
-        </div>
-        <div class="q-text" id="bookQText"></div>
-        <div class="opt-list" id="bookQOpts"></div>
-        <input class="fill-input" id="bookQFill" placeholder="请输入你的答案..." style="display:none">
-        <div class="btn-row">
-          <button class="btn btn-ghost btn-sm" id="bookBtnPrev" onclick="bookPrev()" style="display:none">← 上一题</button>
-          <div style="flex:1"></div>
-          <button class="btn btn-primary btn-lg" id="bookBtnSubmit" onclick="bookSubmit()">✓ 提交答案</button>
-          <button class="btn btn-success btn-lg" id="bookBtnNext" onclick="bookNext()">下一题 →</button>
-          <button class="btn btn-default" id="bookBtnRetry" onclick="bookRetry()" style="display:none">↻ 重做</button>
-        </div>
-        <div class="fb" id="bookQFb"></div>
+    <div class="q-card">
+      <div class="q-head"><span class="q-badge single" id="bookQBadge">单选题</span><span class="q-num" id="bookQNum">0/0</span></div>
+      <div class="q-text" id="bookQText"></div>
+      <div class="opt-list" id="bookQOpts"></div>
+      <input class="fill-input" id="bookQFill" placeholder="请输入你的答案..." style="display:none">
+      <div class="btn-row">
+        <button class="btn btn-ghost btn-sm" id="bookBtnPrev" onclick="bookPrev()" style="display:none">← 上一题</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-primary btn-lg" id="bookBtnSubmit" onclick="bookSubmit()">✓ 提交答案</button>
+        <button class="btn btn-success btn-lg" id="bookBtnNext" onclick="bookNext()">下一题 →</button>
+        <button class="btn btn-default" id="bookBtnRetry" onclick="bookRetry()" style="display:none">↻ 重做</button>
+        <button class="btn btn-primary btn-lg" id="bookBtnFinish" onclick="showBookReport()">🏁 提交完成</button>
       </div>
+      <div class="fb" id="bookQFb"></div>
     </div>
     <div class="pbar"><div class="pbar-fill" id="bookPbarFill"></div></div>
     <div class="ptext"><span id="bookPStats">准备开始...</span><span id="bookPProgress">0%</span></div>
   </div>
-
-  <!-- Book Score Report -->
   <div id="bookReportArea" style="display:none"></div>
 </div>
-
-
-<!-- ======================================================================== -->
-<!-- PAGE: Exam (大学学科考试) -->
-<!-- ======================================================================== -->
-<div id="page-exam" class="page">
-  <div id="examSelectArea">
-    <div class="section-header">
-      <div><div class="section-title">🎓 大学学科考试</div><div class="section-subtitle">选择学科进行模拟测试，系统自动出卷并评分</div></div>
-    </div>
-    <div id="examCats"></div>
-  </div>
-
-  <div id="examTestArea" style="display:none">
-    <!-- 考试中界面 -->
-    <div class="section-header">
-      <div><div class="section-title" id="examTitle">正在答题...</div><div class="section-subtitle"><span id="examProgress">1/10</span> · <span id="examTimer">00:00</span></div></div>
-      <div class="section-actions"><span id="examScorePreview" style="font-size:12px;color:var(--text-muted)">答对: 0 | 答错: 0</span></div>
-    </div>
-
-    <!-- 题目区 -->
-    <div id="examQArea" style="margin-bottom:16px"></div>
-
-    <!-- 操作按钮 -->
-    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-      <button class="btn" onclick="examPrev()" id="examPrevBtn" disabled style="opacity:.5">← 上一题</button>
-      <button class="btn btn-primary" onclick="examNextOrFinish()" id="examNextBtn">下一题 →</button>
-      <button class="btn btn-danger" onclick="examFinishEarly()" id="examFinishBtn">提前交卷</button>
-    </div>
-  </div>
-
-  <!-- 成绩报告 -->
-  <div id="examReportArea" style="display:none">
-    <div class="section-header"><div><div class="section-title" id="reportTitle">考试成绩</div></div></div>
-    <div id="reportContent"></div>
-    <div style="margin-top:20px;text-align:center">
-      <button class="btn btn-primary" onclick="examRetry()">🔄 再考一次</button>
-      <button class="btn" onclick="switchPage('exam')">⬅️ 返回选科</button>
-    </div>
-  </div>
-</div>
-
 
 </div><!-- /.app -->
 
@@ -834,7 +819,6 @@ function switchPage(page) {
   if (page === 'wrong') loadWrong();
   if (page === 'import') loadBank(); // 刷新科目下拉
   if (page === 'search') { showLibHome(); }
-  if (page === 'exam') { document.getElementById('examSelectArea').style.display='block'; document.getElementById('examTestArea').style.display='none'; document.getElementById('examReportArea').style.display='none'; loadExamCats(); }
 }
 
 // ==================== Subjects ====================
@@ -973,8 +957,9 @@ function showQ() {
   prevBtn.style.display = idx > 0 ? 'inline-flex' : 'none';
   nextBtn.style.display = (idx < qs.length - 1) ? 'inline-flex' : 'none';
 
-  // Save button only for sequential
+  // Save & Finish buttons only for sequential
   document.getElementById('btn-save').style.display = (mode === 'sequential') ? 'inline-flex' : 'none';
+  document.getElementById('btn-finish').style.display = (mode === 'sequential') ? 'inline-flex' : 'none';
 
   // Memorize answer box
   const memo = document.getElementById('memo-box');
@@ -1148,6 +1133,7 @@ function showFinish() {
   document.getElementById('btn-next').style.display = 'none';
   document.getElementById('btn-retry').style.display = 'none';
   document.getElementById('btn-save').style.display = 'none';
+  document.getElementById('btn-finish').style.display = 'none';
   document.getElementById('q-fb').style.display = 'none';
   // Hide qnav
   const qnav = document.getElementById('qnav-wrap');
@@ -1519,65 +1505,249 @@ function submitName() {
     })
     .catch(() => { errEl.textContent='网络错误'; errEl.style.display='block'; });
 }
-// ==================== Library / Book Browse (学科书籍浏览) ====================
+/* ==================== Library / 查找题库 (全面教材 + 自定义出题) ==================== */
 
-/* 大学教材/书籍数据 - 按学科分类 */
 const LIBRARY_DATA = [
   {
-    cat: "理工科", icon: "🔬",
+    cat: "🔬 理工科", icon: "🔬",
     books: [
-      {id:"lib_gaoshu", name:"高等数学(同济版)", desc:"极限、导数、积分、级数、微分方程", tag:"math", subMatch:["数学","高数","微积分"]},
-      {id:"lib_xianxing", name:"线性代数", desc:"行列式、矩阵、向量空间、特征值、二次型", tag:"math", subMatch:["数学","线性代数","线代"]},
-      {id:"lib_gailv", name:"概率论与数理统计", desc:"随机事件、分布函数、期望方差、大数定律", tag:"math", subMatch:["数学","概率论","概率"]},
-      {id:"lib_wuli", name:"大学物理", desc:"力学、热学、电磁学、光学、近代物理", tag:"physics", subMatch:["物理","大学物理"]},
-      {id:"lib_huaxue", name:"普通化学原理", desc:"原子结构、化学键、热力学、动力学、平衡", tag:"chemistry", subMatch:["化学","普化"]},
-      {id:"lib_shujujiegou", name:"数据结构(C语言版)", desc:"线性表、树、图、排序、查找算法", tag:"cs", subMatch:["计算机","数据结构","算法"]},
-      {id:"lib_zuchengyuanli", name:"计算机组成原理", desc:"数据表示、指令系统、CPU、存储器、I/O", tag:"cs", subMatch:["计算机","组成原理","计组"]},
-      {id:"lib_caozuo", name:"操作系统概念", desc:"进程管理、内存管理、文件系统、IO管理", tag:"cs", subMatch:["计算机","操作系统","OS"]},
-      {id:"lib_wangluo", name:"计算机网络(谢希仁)", desc:"物理层、数据链路层、网络层、传输层、应用层", tag:"cs", subMatch:["计算机","网络","计网"]},
+      {id:"lib_gaoshu", name:"高等数学(同济第七版)", desc:"函数极限、一元微积分、多元微积分、级数、微分方程、向量代数", author:"同济大学数学系", tag:"math",
+        subMatch:["数学","高数","微积分"],
+        qs:[
+          {q:"函数 f(x)=x² 在 x=2 处的导数值是？",t:"single",o:["1","2","4","8"],a:"C"},
+          {q:"∫(0→1) x² dx 的结果是？",t:"single",o:["1/2","1/3","1/4","1"],a:"B"},
+          {q:"lim(x→0) sin(x)/x 的值是？",t:"single",o:["0","1","∞","不存在"],a:"B"},
+          {q:"判断：连续函数一定可导。",t:"judge",a:false},
+          {q:"e^x 的不定积分是______。",t:"fill",a:"e^x + C"},
+        ]},
+      {id:"lib_xianxing", name:"线性代数(同济第六版)", desc:"行列式、矩阵运算、向量组线性相关性、相似对角化、二次型、线性空间", author:"同济大学数学系", tag:"math",
+        subMatch:["数学","线性代数","线代"],
+        qs:[
+          {q:"三阶单位矩阵的行列式值是？",t:"single",o:["0","1","-1","3"],a:"B"},
+          {q:"若 A 是 3×3 矩阵且 |A|=5，则 |2A|=？",t:"single",o:["10","20","40","80"],a:"C"},
+          {q:"判断：若向量组 α₁,α₂,α₃ 线性无关，则 α₁+α₂, α₂+α₃, α₃+α₁ 也线性无关。",t:"judge",a:true},
+          {q:"齐次线性方程组 Ax=0 有非零解的充要条件是______。",t:"fill",a:"r(A)<n（系数矩阵秩小于未知数个数)"},
+        ]},
+      {id:"lib_gailv", name:"概率论与数理统计(浙大第四版)", desc:"随机事件概率、随机变量分布、数字特征、大数定律、抽样分布、参数估计、假设检验", author:"盛骤 谢式千 潘承毅", tag:"math",
+        subMatch:["数学","概率论","概率"],
+        qs:[
+          {q:"P(A)=0.3, P(B)=0.4, A与B独立，则 P(A∪B)=？",t:"single",o:["0.12","0.58","0.7","0.82"],a:"B"},
+          {q:"标准正态分布 N(0,1) 中 P(Z≤1.96)≈？",t:"single",o:["0.90","0.95","0.975","0.99"],a:"C"},
+          {q:"判断：互斥事件一定相互独立。",t:"judge",a:false},
+          {q:"设X~B(n,p)，则E(X)=______。",t:"fill",a:"np"},
+        ]},
+      {id:"lib_wuli", name:"大学物理(吴百诗版)", desc:"力学(质点运动/刚体转动)、热学(热力学)、电磁学、振动波动、光学、近代物理基础", author:"吴百诗", tag:"physics",
+        subMatch:["物理","大学物理"],
+        qs:[
+          {q:"一个物体做匀速圆周运动，向心力方向指向？",t:"single",o:["速度方向","加速度方向","圆心","切线方向"],a:"C"},
+          {q:"理想气体状态方程 pV=nR T 中 R 的值约为？",t:"single",o:["6.02×10²³","8.31 J/(mol·K)","3×10⁸ m/s","9.8 m/s²"],a:"B"},
+          {q:"判断：光从光密介质射入光疏介质时可能发生全反射。",t:"judge",a:true},
+          {q:"法拉第电磁感应定律公式为 ε=______。",t:"fill",a:"-dΦ/dt"},
+        ]},
+      {id:"lib_shujujiegou", name:"数据结构(C语言版·严蔚敏)", desc:"线性表(顺序/链式)、栈队列、串、树(二叉树/遍历/Huffman)、图(遍历/最短路径/MST)、查找排序算法", author:"严蔚敏 吴伟民", tag:"cs",
+        subMatch:["计算机","数据结构","算法"],
+        qs:[
+          {q:"长度为 n 的单链表中删除第 i 个节点的时间复杂度为？",t:"single",o:["O(1)","O(log n)","O(n)","O(n²)"],a:"C"},
+          {q:"后缀表达式\"ab+cd-*\"对应的中缀表达式是？",t:"single",o:["(a+b)*(c-d)","(a+b*c)-d","a+(b-c)*d","((ab+)c-d)*"],a:"A"},
+          {q:"判断：二叉树的先序遍历和中序遍历可以唯一确定一棵二叉树。",t:"judge",a:true},
+          {q:"快速排序的平均时间复杂度为______。",t:"fill",a:"O(n log n)"},
+          {q:"完全二叉树有15个节点，则叶子节点数为？",t:"single",o:["7","8","15","16"],a:"B"},
+        ]},
+      {id:"lib_zuchengyuanli", name:"计算机组成原理(唐朔飞第三版)", desc:"系统总线、存储系统(Cache层次)、指令系统、CPU数据通路控制器、I/O系统", author:"唐朔飞", tag:"cs",
+        subMatch:["计算机","组成原理","计组"],
+        qs:[
+          {q:"32位补码能表示的最大正整数是？",t:"single",o:["2³²-1","2³¹-1","2³¹","2³²"],a:"B"},
+          {q:"SRAM 与 DRAM 的主要区别是？",t:"single",o:["速度不同","是否需要刷新","容量不同","价格不同"],a:"B"},
+          {q:"判断：流水线技术一定能提高单条指令执行效率。",t:"judge",a:false},
+          {q:"Cache 的命中率 H = ______。",t:"fill",a:"Nc/(Nc+Nm)"},
+        ]},
+      {id:"lib_caozuo", name:"操作系统概念(汤子瀛第四版)", desc:"进程管理调度同步死锁、内存管理分页分段虚拟、文件系统、设备管理IO", author:"汤子瀛", tag:"cs",
+        subMatch:["计算机","操作系统","OS"],
+        qs:[
+          {q:"进程的三种基本状态是？",t:"single",o:["创建/就绪/阻塞","运行/就绪/阻塞","新建/活跃/终止","等待/执行/完成"],a:"B"},
+          {q:"产生死锁的四个必要条件不包括？",t:"single",o:["互斥条件","请求保持","不可剥夺","公平分配"],a:"D"},
+          {q:"判断：进程与程序的主要区别是动态性。",t:"judge",a:true},
+          {q:"页面置换算法 LRU 的含义是______。",t:"fill",a:"最近最少使用(Least Recently Used)"},
+        ]},
+      {id:"lib_wangluo", name:"计算机网络(谢希仁第八版)", desc:"物理层/数据链路层/网络层IP路由/传输层TCP UDP/应用层HTTP DNS SMTP FTP", author:"谢希仁", tag:"cs",
+        subMatch:["计算机","网络","计网","计算机网络"],
+        qs:[
+          {q:"TCP/IP 参考模型共分为几层？",t:"single",o:["4层","5层","6层","7层"],a:"A"},
+          {q:"HTTP 默认端口号是？",t:"single",o:["21","23","80","443"],a:"C"},
+          {q:"判断：UDP 提供可靠传输服务。",t:"judge",a:false},
+          {q:"IP 地址 192.168.1.0/24 中 /24 表示______。",t:"fill",a:"前24位是网络号"},
+        ]},
     ]
   },
   {
-    cat: "文史哲法", icon: "📜",
+    cat: "📜 文史哲法", icon: "📜",
     books: [
-      {id:"lib_make", name:"马克思主义基本原理概论", desc:"唯物论、辩证法、认识论、唯物史观、政治经济学", tag:"politics", subMatch:["政治","马原","马克思"]},
-      {id:"lib_jindaishi", name:"中国近现代史纲要", desc:"鸦片战争到改革开放，重大事件与历史规律", tag:"history", subMatch:["历史","近现代史","史纲"]},
-      {id:"lib_sixiu", name:"思想道德修养与法律基础", desc:"人生观价值观、道德规范、法治理念", tag:"politics", subMatch:["政治","思修","思法"]},
-      {id:"lib_faxue", name:"法学导论", desc:"宪法、民法、刑法、诉讼法基础知识", tag:"law", subMatch:["法律","法学","法制"]},
-      {id:"lib_zhexue", name:"哲学通论", desc:"本体论、认识论、伦理学、美学入门", tag:"philosophy", subMatch:["哲学","哲导"]},
+      {id:"lib_make", name:"马克思主义基本原理概论(2023版)", desc:"唯物论、辩证法三大规律、认识论、唯物史观、政治经济学剩余价值", author:"本书编写组", tag:"politics",
+        subMatch:["政治","马原","马克思"],
+        qs:[
+          {q:"马克思主义的理论来源是德国古典哲学、英国古典政治经济学和______。",t:"single",o:["法国空想社会主义","美国实用主义","俄国革命理论","中国儒家思想"],a:"A"},
+          {q:"辩证法的三大规律不包括？",t:"single",o:["对立统一规律","质量互变规律","否定之否定规律","因果关系规律"],a:"D"},
+          {q:"判断：实践是认识的唯一来源。",t:"judge",a:true},
+          {q:"商品二因素是使用价值和______。",t:"fill",a:"价值"},
+        ]},
+      {id:"lib_jindaishi", name:"中国近现代史纲要(2023版)", desc:"鸦片战争至改革开放：反帝反封建、旧新民主主义革命、社会主义建设、改革开放", author:"本书编写组", tag:"history",
+        subMatch:["历史","近现代史","史纲"],
+        qs:[
+          {q:"鸦片战争开始于哪一年？",t:"single",o:["1839","1840","1841","1842"],a:"B"},
+          {q:"中共一大召开地点是？",t:"single",o:["北京","上海","广州","嘉兴"],a:"B"},
+          {q:"判断：辛亥革命结束了中国两千多年的封建帝制。",t:"judge",a:true},
+          {q:"五四运动的导火线是______事件。",t:"fill",a:"巴黎和会中国外交失败"},
+        ]},
+      {id:"lib_sixiu", name:"思想道德修养与法律基础(2023版)", desc:"人生观价值观理想信念、中国精神、社会主义核心价值观、道德规范法治理念", author:"本书编写组", tag:"politics",
+        subMatch:["政治","思修","思法"],
+        qs:[
+          {q:"社会主义核心价值观国家层面的内容是？",t:"single",o:["自由平等公正法治","爱国敬业诚信友善","富强民主文明和谐","和谐文明公正法治"],a:"C"},
+          {q:"我国宪法的核心价值追求是______。",t:"single",o:["保障人权","规范权力","秩序优先","效率至上"],a:"A"},
+          {q:"判断：道德和法律都是调整社会关系的行为规范。",t:"judge",a:true},
+          {q:"公民的基本权利包括______权、______权、______权等。",t:"fill",a:"平等;政治自由;人身自由"},
+        ]},
+      {id:"lib_faxue", name:"法学导论(卓泽渊第五版)", desc:"法理学基础、宪法、民法总则、刑法原则罪刑法定、诉讼法", author:"卓泽渊", tag:"law",
+        subMatch:["法律","法学","法制","法理"],
+        qs:[
+          {q:"我国现行宪法颁布实施于哪一年？",t:"single",o:["1954","1975","1982","1999"],a:"C"},
+          {q:"刑法的基本原则不包括？",t:"single",o:["罪刑法定","适用刑法人人平等","罪责刑相适应","疑罪从无"],a:"D"},
+          {q:"判断：民法调整平等主体之间的人身关系和财产关系。",t:"judge",a:true},
+          {q:"法律规则的逻辑结构包括______、______、______三部分。",t:"fill",a:"假定;处理;后果"},
+        ]},
+      {id:"lib_zhexue", name:"哲学通论(孙正聿)", desc:"哲学基本问题思维与存在、本体论物质观时空观、认识论真理观、辩证法、伦理学美学", author:"孙正聿", tag:"philosophy",
+        subMatch:["哲学","哲导","哲学通论"],
+        qs:[
+          {q:"哲学的基本问题是？",t:"single",o:["物质与运动的关系","时间与空间的关系","思维与存在的关系","原因与结果的关系"],a:"C"},
+          {q:"辩证否定的实质是？",t:"single",o:["全盘抛弃","简单肯定","扬弃","循环重复"],a:"C"},
+          {q:"判断：实践是检验真理的唯一标准。",t:"judge",a:true},
+          {q:"量变质变规律揭示了事物发展的______形式。",t:"fill",a:"状态(或连续性与非连续性)"},
+        ]},
     ]
   },
   {
-    cat: "经管类", icon: "💰",
+    cat: "💰 经管类", icon: "💰",
     books: [
-      {id:"lib_weiguan", name:"微观经济学", desc:"供求理论、消费者行为、生产成本、市场结构", tag:"econ", subMatch:["经济","微观","西方经济学"]},
-      {id:"lib_hongguan", name:"宏观经济学", desc:"GDP核算、IS-LM模型、通胀失业、财政货币政策", tag:"econ", subMatch:["经济","宏观","西经"]},
-      {id:"lib_guanli", name:"管理学原理", desc:"计划、组织、领导、控制四大职能", tag:"mgmt", subMatch:["管理","管理学"]},
-      {id:"lib_kuaiji", name:"基础会计学", desc:"会计要素、借贷记账法、财务报表编制", tag:"accounting", subMatch:["会计","财会"]},
-      {id:"lib_yingxiao", name:"市场营销学", desc:"市场调研、4P策略、品牌管理、数字营销", tag:"mgmt", subMatch:["营销","市场营销"]},
+      {id:"lib_weiguan", name:"微观经济学(高鸿业第八版)", desc:"供求弹性、消费者行为效用无差异曲线、生产者理论成本曲线、市场结构完全竞争垄断寡头、福利经济市场失灵", author:"高鸿业", tag:"econ",
+        subMatch:["经济","微观","西方经济学"],
+        qs:[
+          {q:"正常品的价格上升会导致替代效应与收入效应的方向？",t:"single",o:["相同","相反","不确定","均为零"],a:"A"},
+          {q:"完全竞争市场中厂商利润最大化条件是？",t:"single",o:["P=MC=AC","MR=MC","P>MC","AR<AC"],a:"B"},
+          {q:"判断：吉芬商品一定是低档商品。",t:"judge",a:true},
+          {q:"边际收益递减规律的内涵是______。",t:"fill",a:"其他条件不变时连续增加一种生产要素投入所带来的产量增量最终会递减"},
+        ]},
+      {id:"lib_hongguan", name:"宏观经济学(多恩布什第十二版)", desc:"GDP核算IS-LM-BP模型、AD-AS模型、通胀失业菲利普斯曲线、经济增长索洛模型、财政货币政策蒙代尔弗莱明", author:"鲁迪格·多恩布什", tag:"econ",
+        subMatch:["经济","宏观","西经","宏观经济学"],
+        qs:[
+          {q:"GDP核算的支出法公式为 GDP = C + I + G + ____。",t:"single",o:["Tax","Export","NX","Transfer Payment"],a:"C"},
+          {q:"当IS-LM同时右移时利率的变化方向是？",t:"single",o:["上升","下降","不变","不确定"],a:"D"},
+          {q:"根据菲利普斯曲线通胀率与失业率呈______相关。",t:"fill",a:"反向(负)"},
+        ]},
+      {id:"lib_guanli", name:"管理学原理(周三多第五版)", desc:"管理与管理者、科学管理行为科学现代管理演进、计划决策SWOT、组织结构职权、领导激励沟通X Y Z理论、控制过程方法", author:"周三多", tag:"mgmt",
+        subMatch:["管理","管理学"],
+        qs:[
+          {q:"泰勒的科学管理理论的核心是？",t:"single",o:["人际关系","工作标准化和时间研究","组织结构优化","激励机制设计"],a:"B"},
+          {q:"马斯洛需求层次理论的最高层次是？",t:"single",o:["安全需要","社交需要","尊重需要","自我实现"],a:"D"},
+          {q:"判断：管理的四大职能是计划组织领导和控制。",t:"judge",a:true},
+          {q:"赫茨伯格双因素理论中的保健因素是指______因素。",t:"fill",a:"消除不满但不能直接带来满足感的(如薪酬环境)"},
+        ]},
+      {id:"lib_kuaiji", name:"基础会计学(陈国辉第六版)", desc:"会计科目账户借贷记账法资产等于负债加所有者权益、采购生产销售核算、资产负债表利润表现金流量表编制", author:"陈国辉 迟旭东", tag:"accounting",
+        subMatch:["会计","财会","基础会计"],
+        qs:[
+          {q:"资产=负债+所有者权益 这一等式被称为？",t:"single",o:["收付实现制","权责发生制","会计恒等式","复式记账法"],a:"C"},
+          {q:"借方登记增加的账户类别是？",t:"single",o:["负债类","所有者权益类","收入类","资产类"],a:"D"},
+          {q:"判断：权责发生制是以现金实际收支来确认收入费用。",t:"judge",a:false},
+          {q:"计提折旧的会计分录：借：______ 贷：累计折旧。",t:"fill",a:"制造费用(或管理费用)"},
+        ]},
+      {id:"lib_yingxiao", name:"市场营销学(郭国庆第七版)", desc:"营销环境STEP波特五力、消费者购买决策过程、STP细分目标定位战略、4P产品价格渠道促销策略品牌数字营销KOL直播电商", author:"郭国庆", tag:"mgmt",
+        subMatch:["营销","市场营销"],
+        qs:[
+          {q:"营销4P指的是？",t:"single",o:["产品价格促销渠道","产品价格渠道推广","产品流程人员物理证据","感知价格途径促销"],a:"A"},
+          {q:"营销观念的核心是以____为中心。",t:"single",o:["产品","顾客","企业自身","竞争对手"],a:"B"},
+          {q:"产品生命周期的四个阶段依次为导入期成长期成熟期和______。",t:"fill",a:"衰退期"},
+        ]},
     ]
   },
   {
-    cat: "医学", icon: "🏥",
+    cat: "🏥 医学", icon: "🏥",
     books: [
-      {id:"lib_jiepou", name:"系统解剖学", desc:"运动系统、内脏学、脉管系统、神经系统、感觉器", tag:"med", subMatch:["医学","解剖","解剖学"]},
-      {id:"lib_shengli", name:"生理学", desc:"细胞功能、内环境稳态、神经调节、体液调节", tag:"med", subMatch:["医学","生理","生理学"]},
-      {id:"lib_shenghua", name:"生物化学与分子生物学", desc:"蛋白质、核酸、糖代谢、脂代谢、基因表达", tag:"med", subMatch:["医学","生化","生物化学"]},
-      {id:"lib_bingli", name:"病理生理学", desc:"疾病病因发病机制、水电解质失衡、休克、缺氧", tag:"med", subMatch:["医学","病理","病生"]},
-      {id:"lib_neike", name:"内科学", desc:"呼吸循环消化泌尿血液内分泌各系统疾病诊治", tag:"med", subMatch:["医学","内科","内科学"]},
+      {id:"lib_jiepou", name:"系统解剖学(柏树令第九版)", desc:"骨学关节学肌学运动系统、内脏学消化呼吸泌尿生殖、脉管系心血管淋巴、感觉器视位听、神经系统中枢周围、内分泌", author:"柏树令 应大君", tag:"med",
+        subMatch:["医学","解剖","解剖学","系统解剖"],
+        qs:[
+          {q:"人体共有多少块骨头(成人)？",t:"single",o:["206","208","210","204"],a:"A"},
+          {q:"膝关节属于哪种类型的关节？",t:"single",o:["球窝关节","椭圆关节","屈戌关节铰链关节","车轴关节"],a:"C"},
+          {q:"判断：心脏位于胸腔正中偏左。",t:"judge",a:true},
+          {q:"肝门出入的结构包括肝动脉门静脉和______。",t:"fill",a:"肝管(胆管)"},
+        ]},
+      {id:"lib_shengli", name:"生理学(朱大年第九版)", desc:"细胞基本功能生物电肌肉收缩、血液血型凝血、循环系统心脏泵血血压调节、呼吸通气交换运输、消化吸收代谢体温、泌尿肾小球滤过重吸收分泌", author:"朱大年 王庭槐", tag:"med",
+        subMatch:["医学","生理","生理学"],
+        qs:[
+          {q:"静息电位主要由哪种离子形成？",t:"single",o:["Na⁺","K⁺","Cl⁻","Ca²⁺"],a:"B"},
+          {q:"正常成人安静时的心率为？",t:"single",o:["40-60次/分","60-100次/分","100-120次/分","120-140次/分"],a:"B"},
+          {q:"判断：血红蛋白氧解离曲线右移意味着氧亲和力降低。",t:"judge",a:true},
+          {q:"抗利尿激素ADH的主要作用是促进远曲小管和集合管对______的重吸收。",t:"fill",a:"水"},
+        ]},
+      {id:"lib_bingli", name:"病理生理学(王建枝第九版)", desc:"疾病概论病因发病机制、水电解质失衡缺氧发热休克DIC应激缺血再灌注损伤、心力衰竭呼吸衰竭肝肾功能衰竭", author:"王建枝 钱睿哲", tag:"med",
+        subMatch:["医学","病理","病生","病理生理"],
+        qs:[
+          {q:"低渗性脱水的特点是血清钠浓度低于？",t:"single",o:["130mmol/L","135mmol/L","150mmol/L","160mmol/L"],a:"A"},
+          {q:"休克代偿期的最主要临床表现是？",t:"single",o:["血压明显下降","面色苍白四肢湿冷脉速","无尿昏迷","呼吸困难发绀"],a:"B"},
+          {q:"判断：DIC是一种出血性疾病。",t:"judge",a:true},
+          {q:"休克的始动环节是______。",t:"fill",a:"有效循环血量锐减(组织灌注不足)"},
+        ]},
+      {id:"lib_neike", name:"内科学(葛均波第九版)", desc:"呼吸系统肺炎COPD哮喘呼衰、循环系统高血压冠心病心衰心律失常、消化系统胃炎溃疡肝炎肝硬化、泌尿肾炎肾衰血液贫血白血病内分泌糖尿病甲亢甲减风湿免疫神经", author:"葛均波 徐永健 王辰", tag:"med",
+        subMatch:["医学","内科","内科学"],
+        qs:[
+          {q:"COPD 的典型症状是？",t:"single",o:["阵发性喘息","慢性咳嗽咳痰气短","咯血","胸痛"],a:"B"},
+          {q:"高血压的诊断标准是血压≥？",t:"single",o:["120/80 mmHg","130/85 mmHg","140/90 mmHg","160/100 mmHg"],a:"C"},
+          {q:"判断：糖尿病的典型症状是三多一少。",t:"judge",a:true},
+          {q:"急性心肌梗死的特征性心电图改变出现异常______波。",t:"fill",a:"Q波(或病理性Q波)"},
+        ]},
     ]
   },
   {
-    cat: "语言文学", icon: "📖",
+    cat: "📖 语言文学", icon: "📖",
     books: [
-      {id:"lib_cet4", name:"大学英语四级(CET-4)", desc:"听力理解、阅读理解、写作翻译综合训练", tag:"lang", subMatch:["英语","CET-4","四级","英语四"]},
-      {id:"lib_cet6", name:"大学英语六级(CET-6)", desc:"更高难度听力阅读、快速阅读、深度翻译", tag:"lang", subMatch:["英语","CET-6","六级","英语六"]},
-      {id:"lib_xiandaihy", name:"现代汉语", desc:"语音文字词汇语法修辞，现代汉语规范化", tag:"lang", subMatch:["语文","汉语","现代汉语"]},
-      {id:"lib_gudaihy", name:"古代汉语", desc:"汉字发展、古今词义异同、文言文阅读", tag:"lang", subMatch:["语文","古代汉语","古汉语"]},
-      {id:"lib_xiezuo", name:"写作基础", desc:"记叙文议论文说明文应用文写作技巧与方法", tag:"lang", subMatch:["语文","写作"]},
-      ]
+      {id:"lib_cet4", name:"大学英语四级(CET-4)备考指南", desc:"听力短对话长对话篇章复合式听写、阅读词汇理解长篇阅读仔细阅读、写作图表议论文应用文、翻译段落汉译英", author:"教育部考试中心大纲", tag:"lang",
+        subMatch:["英语","CET-4","四级","英语四"],
+        qs:[
+          {q:"It's raining cats and dogs 的意思是？",t:"single",o:["下猫和狗","倾盆大雨","天气晴朗","毛毛细雨"],a:"B"},
+          {q:"Choose: She ___ to the station when I called her.",t:"single",o:["goes","went","has gone","was going"],a:"D"},
+          {q:'Translate: 随着经济的发展人们的生活水平不断提高。(As...)',t:"fill",a:"As the economy develops people's living standard keeps improving."},
+        ]},
+      {id:"lib_cet6", name:"大学英语六级(CET-6)备考指南", desc:"高级听力讲座讲话深度阅读长篇快速仔细、高级写作论证反驳摘要复杂句型翻译词汇扩充5500-6000词", author:"教育部考试中心大纲", tag:"lang",
+        subMatch:["英语","CET-6","六级","英语六"],
+        qs:[
+          {q:"Ubiquitous 最接近的意思是？",t:"single",o:["unique","everywhere","important","ancient"],a:"B"},
+          {q:"The professor's lecture was so ___ that half the class fell asleep.",t:"single",o:["fascinating","tedious","brief","controversial"],a:"B"},
+        ]},
+      {id:"lib_xiandaihy", name:"现代汉语(黄伯荣 廖序东第六版)", desc:"语音声母韵母声调音节、文字汉字形体结构规范化、词汇词义构成熟语、语法词类短语句子成分复句歧义修改修辞比喻拟人排比对偶夸张", author:"黄伯荣 廖序东", tag:"lang",
+        subMatch:["语文","汉语","现代汉语","汉语言文学"],
+        qs:[
+          {q:"中华人民共和国有几个音节？",t:"single",o:["5","6","7","8"],a:"C"},
+          {q:"吃饭中吃的词性是？",t:"single",o:["名词","动词","形容词","副词"],a:"B"},
+          {q:"判断：汉语没有形态变化。",t:"judge",a:true},
+          {q:"比喻这种修辞手法包含三个要素本体喻体和______。",t:"fill",a:"喻词(比喻词)"},
+        ]},
+      {id:"lib_gudaihy", name:"古代汉语(王力第一册)", desc:"文字六书古今字通假字异体字、词汇古今词义异同本义引申义假借义、语法词类活用常见文言虚词特殊句式、古书注解诗词格律", author:"王力", tag:"lang",
+        subMatch:["语文","古代汉语","古汉语","汉语言文学"],
+        qs:[
+          {q:"学而时习之中习的古义是？",t:"single",o:["学习","温习演练","习惯","熟悉"],a:"B"},
+          {q:"臣诚恐见欺于王而负赵中见的用法是？",t:"single",o:["看见","被被动标记","显现","见解"],a:"B"},
+          {q:"判断：之在古汉语中只能作代词。",t:"judge",a:false},
+          {q:"肉食者鄙一句中鄙的含义是______(古义)。",t:"fill",a:"目光短浅(鄙陋浅薄)"},
+        ]},
+      {id:"lib_xiezuo", name:"写作基础(刘海贵第五版)", desc:"写作主体素养观察感受想象、材料收集整理提炼主题确立深化表达结构布局开头结尾过渡照应表达方式叙述描写抒情议论说明文体写作消息通讯评论散文诗歌小说公文", author:"刘海贵", tag:"lang",
+        subMatch:["语文","写作","基础写作"],
+        qs:[
+          {q:"议论文的三要素是？",t:"single",o:["开头正文结尾","论点论据论证","起因经过结果","人物情节环境"],a:"B"},
+          {q:"倒叙的作用不包括？",t:"single",o:["制造悬念","突出中心","按时间顺序强调某个片段"],a:"C"},
+          {q:"新闻五个W一个H是指______。",t:"fill",a:"Who What When Where Why How"},
+        ]},
+    ]
   }
 ];
+
+let pendingBookId = null;
 
 function showLibHome() {
   document.getElementById('libPage').style.display = 'block';
@@ -1589,17 +1759,21 @@ function showLibHome() {
 function renderLib() {
   const c = document.getElementById('libContent');
   let h = '';
+  let totalBooks = 0;
   LIBRARY_DATA.forEach(cat => {
+    totalBooks += cat.books.length;
     h += '<div class="lib-cat">';
-    h += `<div class="lib-cat-header"><span class="lib-cat-icon">${cat.icon}</span><span class="lib-cat-name">${escHtml(cat.cat)}</span><span class="lib-cat-count">${cat.books.length}本</span></div>`;
+    h += '<div class="lib-cat-header"><span class="lib-cat-icon">' + cat.icon + '</span><span class="lib-cat-name">' + escHtml(cat.cat) + '</span><span class="lib-cat-count">' + cat.books.length + '本教材</span></div>';
     h += '<div class="lib-grid">';
     cat.books.forEach(book => {
-      const qCount = getBookQCount(book);
-      h += `<div class="lib-card" onclick="startBookQuiz('${book.id}')">`;
-      h += `<div class="lib-card-title">${escHtml(book.name)}</div>`;
-      h += `<div class="lib-card-desc">${escHtml(book.desc)}</div>`;
-      h += `<span class="lib-card-tag ${book.tag}">${qCount > 0 ? qCount + ' 道题目' : '暂无题目'}</span>`;
-      h += `<div class="lib-card-action">开始测试 →</div></div>`;
+      const qCount = (book.qs || []).length;
+      const dbCount = getBookQCount(book);
+      h += '<div class="lib-card" onclick="openBookConfig(\'' + book.id + '\')">';
+      h += '<div class="lib-card-title">' + escHtml(book.name) + '</div>';
+      h += '<div class="lib-card-desc">' + escHtml(book.desc) + '</div>';
+      if (book.author) h += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">\u{1F464} ' + escHtml(book.author) + '</div>';
+      h += '<span class="lib-card-tag ' + book.tag + '" style="margin-top:6px">内置' + qCount + '题 ' + (dbCount > 0 ? '+ 库存' + dbCount + '题' : '') + '</span>';
+      h += '<div class="lib-card-action">自定义出题 →</div></div>';
     });
     h += '</div></div>';
   });
@@ -1607,10 +1781,9 @@ function renderLib() {
 }
 
 function getBookQCount(book) {
-  // Count questions that match this book's subject keywords
   let count = 0;
   for (let i = 0; i < allSubs.length; i++) {
-    for (let j = 0; j < book.subMatch.length; j++) {
+    for (let j = 0; j < (book.subMatch || []).length; j++) {
       if (allSubs[i].name.indexOf(book.subMatch[j]) >= 0) {
         count += (allSubs[i].count || 0);
         break;
@@ -1629,12 +1802,25 @@ function findBookById(id) {
   return null;
 }
 
+function openBookConfig(bookId) {
+  currentBook = findBookById(bookId);
+  if (!currentBook) return;
+  pendingBookId = bookId;
+  document.getElementById('bookConfigTitle').textContent = '\u{1F4DA} ' + currentBook.name;
+  document.getElementById('bookConfigSub').textContent = '选择题目数量和题型开始测试';
+  document.getElementById('bookQCount').value = 10;
+  document.getElementById('bookConfigModal').style.display = 'flex';
+}
+
+
 // ==================== Book Quiz Logic (书籍测试) ====================
 let bookQs = [], bookIdx = 0, bookAnsMap = {}, currentBook = null;
 
-async function startBookQuiz(bookId) {
+async function confirmBookQuiz(bookId) {
+  if (!bookId) bookId = pendingBookId;
   currentBook = findBookById(bookId);
   if (!currentBook) return;
+  pendingBookId = null;
 
   // Find matching subjects
   let matchSubs = [];
@@ -1740,6 +1926,7 @@ function showBookQ() {
   document.getElementById('bookBtnSubmit').disabled = false;
   document.getElementById('bookBtnNext').style.display = 'inline-flex';
   document.getElementById('bookBtnRetry').style.display = 'none';
+  document.getElementById('bookBtnFinish').style.display = 'inline-flex';
 
   // Prev/Next buttons
   document.getElementById('bookBtnPrev').style.display = bookIdx > 0 ? 'inline-flex' : 'none';
@@ -1894,7 +2081,7 @@ function showBookReport() {
 
   // Action buttons
   html += '<div style="display:flex;gap:12px;justify-content:center;margin-top:28px;flex-wrap:wrap">';
-  html += '<button class="btn btn-primary btn-lg" onclick="startBookQuiz(\'' + (currentBook ? currentBook.id : '') + '\')">🔄 再测一次</button>';
+  html += '<button class="btn btn-primary btn-lg" onclick="confirmBookQuiz(\'' + (currentBook ? currentBook.id : '') + '\')">🔄 再测一次</button>';
   html += '<button class="btn btn-ghost" onclick="showLibHome()">⬅️ 返回书库</button>';
   html += '</div></div>';
 

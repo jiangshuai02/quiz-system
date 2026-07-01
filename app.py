@@ -91,6 +91,7 @@ class Record(db.Model):
     is_correct = db.Column(db.Boolean)
     display_name = db.Column(db.String(50))  # 用户自定义名称
     ip_address = db.Column(db.String(45))  # IP地址
+    ip_location = db.Column(db.String(200))  # IP地理位置(如: 河南省郑州市)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 @login_manager.user_loader
@@ -269,6 +270,9 @@ def migrate_db():
         if 'ip_address' not in rec_cols:
             print("MIGRATE: Adding ip_address column to records...")
             db.session.execute(sa.text("ALTER TABLE records ADD COLUMN ip_address VARCHAR(45)"))
+        if 'ip_location' not in rec_cols:
+            print("MIGRATE: Adding ip_location column to records...")
+            db.session.execute(sa.text("ALTER TABLE records ADD COLUMN ip_location VARCHAR(200)"))
 
     db.session.commit()
 
@@ -940,13 +944,15 @@ def check():
     try:
         # 优先从请求体获取display_name（前端传递），其次从session获取
         dn = (d.get('display_name') or '').strip() or session.get('display_name', '')
+        client_ip = request.remote_addr or ''
         db.session.add(Record(
             user_id=current_user.id,
             question_id=qid,
             user_answer=str(ua),
             is_correct=bool(correct),
             display_name=dn,
-            ip_address=request.remote_addr or ''
+            ip_address=client_ip,
+            ip_location=get_ip_location(client_ip)
         ))
         db.session.commit()
     except:
@@ -1045,6 +1051,38 @@ def clear_my_data():
 # 工具函数
 TZ_CN = timezone(timedelta(hours=8))
 
+# IP地理位置缓存（避免重复查询同一IP）
+_ip_location_cache = {}
+
+def get_ip_location(ip):
+    """查询IP地址的地理位置，返回如'河南省郑州市龙湖镇'的字符串"""
+    if not ip or ip in ('127.0.0.1', 'localhost', '::1'):
+        return '本地访问'
+    if ip in _ip_location_cache:
+        return _ip_location_cache[ip]
+    try:
+        import urllib.request, json
+        url = f'http://ip-api.com/json/{ip}?lang=zh-CN&fields=status,country,regionName,city'
+        req = urllib.request.Request(url, headers={'User-Agent': 'QuizSystem/1.0'})
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            data = json.loads(resp.read().decode())
+            if data.get('status') == 'success':
+                # 拼接：国家 + 省/州 + 城市
+                parts = []
+                country = data.get('country', '')
+                region = data.get('regionName', '')
+                city = data.get('city', '')
+                if country: parts.append(country)
+                if region and region != city: parts.append(region)
+                if city: parts.append(city)
+                loc = ''.join(parts)
+                _ip_location_cache[ip] = loc
+                return loc
+    except Exception as e:
+        print(f"[IP lookup] Error for {ip}: {e}")
+    _ip_location_cache[ip] = ip  # 缓存失败结果避免重复查询
+    return ip
+
 def _fmt_time(dt):
     """时间格式化显示（UTC→北京时间）"""
     if not dt:
@@ -1079,11 +1117,17 @@ def admin_users():
     result = []
     for row in users_info:
         name, total, correct, first_seen, last_seen = row
-        # 获取IP地址
-        ips = db.session.query(Record.ip_address).filter(
-            Record.display_name == name, Record.ip_address != None
+        # 获取IP地理位置
+        locations = db.session.query(Record.ip_location).filter(
+            Record.display_name == name, Record.ip_location != None
         ).distinct().all()
-        ip_list = [ip[0] for ip in ips]
+        loc_list = [loc[0] for loc in locations if loc[0]]
+        # 回退：如果没有location则显示原始IP
+        if not loc_list:
+            ips_fallback = db.session.query(Record.ip_address).filter(
+                Record.display_name == name, Record.ip_address != None
+            ).distinct().all()
+            loc_list = [ip[0] for ip in ips_fallback][:3]
         
         result.append({
             'name': name,
@@ -1092,8 +1136,8 @@ def admin_users():
             'accuracy': round(correct / total * 100, 1) if total and correct else 0,
             'first_seen': _fmt_time(first_seen),
             'last_seen': _fmt_time(last_seen),
-            'ips': ', '.join(ip_list[:5]),
-            'ip_count': len(ip_list)
+            'ips': ', '.join(loc_list[:5]),
+            'ip_count': len(loc_list)
         })
     
     return jsonify(result)

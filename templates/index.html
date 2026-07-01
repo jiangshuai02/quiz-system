@@ -330,7 +330,7 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
   <button class="nav-item admin-only" data-page="import">📥 导入</button>
   <button class="nav-item" data-page="wrong">❌ 错题本</button>
   <button class="nav-item" data-page="stats">📊 统计</button>
-  <button class="nav-item admin-only" onclick="window.location.href='/admin'">⚙️ 管理后台</button>
+  <button class="nav-item admin-only" onclick="showAdminLogin()">⚙️ 管理后台</button>
 </div>
 
 <!-- ======================================================================== -->
@@ -547,7 +547,21 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
 
 </div><!-- /.app -->
 
-<!-- ==================== Modal: Name Input (强制命名) ==================== -->
+<!-- ==================== Modal: Admin Login (管理后台登录) ==================== -->
+<div class="modal-overlay" id="adminLoginModal">
+  <div class="modal-box" style="max-width:380px">
+    <span class="modal-icon">🔐</span>
+    <div class="modal-title">管理后台登录</div>
+    <div class="modal-subtitle">请输入管理员账号和密码</div>
+    <input type="text" id="adminUser" class="modal-input" placeholder="管理员账号" maxlength="30"
+      onkeydown="if(event.key==='Enter')document.getElementById('adminPass').focus()">
+    <input type="password" id="adminPass" class="modal-input" placeholder="管理员密码"
+      onkeydown="if(event.key==='Enter')doAdminLogin()">
+    <div class="modal-error" id="adminLoginError"></div>
+    <button class="modal-btn" onclick="doAdminLogin()" style="margin-top:8px;background:linear-gradient(135deg,#6366f1,#8b5cf6)">🔑 登录管理后台</button>
+    <button class="btn btn-ghost" style="width:100%;margin-top:10px" onclick="closeAdminLogin()">取消</button>
+  </div>
+</div>
 <div class="modal-overlay" id="nameModal">
   <div class="modal-box">
     <span class="modal-icon">📚</span>
@@ -1289,6 +1303,35 @@ function toast(msg) {
   el.textContent = msg;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 2000);
+}
+
+// ==================== Admin Login Modal ====================
+const ADMIN_USER = '\u59DC\u5E05', ADMIN_PASS = '17539363075';
+
+function showAdminLogin() {
+  document.getElementById('adminLoginModal').classList.add('show');
+  document.getElementById('adminUser').value = '';
+  document.getElementById('adminPass').value = '';
+  document.getElementById('adminLoginError').style.display = 'none';
+  setTimeout(() => document.getElementById('adminUser').focus(), 300);
+}
+
+function closeAdminLogin() {
+  document.getElementById('adminLoginModal').classList.remove('show');
+}
+
+function doAdminLogin() {
+  const u = document.getElementById('adminUser').value.trim();
+  const p = document.getElementById('adminPass').value.trim();
+  const errEl = document.getElementById('adminLoginError');
+
+  if (!u || !p) { errEl.textContent = '请填写账号和密码'; errEl.style.display = 'block'; return; }
+  if (u !== ADMIN_USER || p !== ADMIN_PASS) { errEl.textContent = '❌ 账号或密码错误！'; errEl.style.display = 'block'; return; }
+
+  // 验证通过，设置标记并跳转
+  sessionStorage.setItem('admin_auth', 'ok');
+  sessionStorage.setItem('admin_time', Date.now());
+  window.location.href = '/admin';
 }
 
 // ==================== Name Input Modal ====================

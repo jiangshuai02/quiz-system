@@ -17,20 +17,8 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
 
-/* ===== Login Page ===== */
-.lp{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;background:linear-gradient(135deg,#0f172a 0%,#1e3a5a 30%,#3b82f6 70%,#8b5cf6 100%)}
-.lb{background:#fff;border-radius:24px;padding:48px 40px;width:100%;max-width:400px;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.3)}
-.li{font-size:52px;margin-bottom:16px;display:block}
-.lt{font-size:24px;font-weight:900;margin-bottom:4px}
-.ls{font-size:13px;color:var(--t2);margin-bottom:28px}
-.linp{width:100%;padding:14px 18px;border:2px solid var(--bd);border-radius:12px;font-size:15px;outline:none;margin-bottom:12px;background:#fafbfc}
-.linp:focus{border-color:var(--p);box-shadow:0 0 0 4px rgba(59,130,246,.12)}
-.lbtn{width:100%;padding:15px;border:none;border-radius:12px;font-size:16px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--p),var(--v));cursor:pointer;margin-top:4px}
-.lbtn:hover{transform:translateY(-2px);box-shadow:0 10px 25px rgba(59,130,246,.35)}
-.lerr{color:var(--d);font-size:13px;margin-top:12px;display:none}
-
-/* ===== Dashboard (hidden initially) ===== */
-.dp{display:none;padding:0;max-width:1400px;margin:0 auto}
+/* ===== Dashboard ===== */
+.dp{padding:0;max-width:1400px;margin:0 auto}
 
 /* Top Nav */
 .dnav{background:rgba(255,255,255,.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
@@ -107,18 +95,15 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang S
 
 <body>
 
-<!-- ===== LOGIN ===== -->
-<div class="lp" id="loginPage">
-  <div class="lb">
-    <span class="li">🔐</span>
-    <div class="lt">管理后台</div>
-    <div class="ls">智能刷题系统 · 管理控制台</div>
-    <input class="linp" id="lu" placeholder="管理员账号" autofocus onkeydown="if(e.key==='Enter')document.getElementById('lp').focus()">
-    <input class="linp" id="lp" type="password" placeholder="管理员密码" onkeydown="if(e.key==='Enter')doLogin()">
-    <button class="lbtn" onclick="doLogin()">🔑 登录管理后台</button>
-    <div class="lerr" id="lerr"></div>
-  </div>
-</div>
+<!-- ===== AUTH CHECK ===== -->
+<script>
+// 检查是否从首页登录弹窗验证通过
+(function(){
+  if(sessionStorage.getItem('admin_auth') !== 'ok') {
+    location.href = '/';
+  }
+})();
+</script>
 
 <!-- ===== DASHBOARD ===== -->
 <div class="dp" id="dashPage">
@@ -206,16 +191,14 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang S
 const AU='\u59DC\u5E05',AP='17539363075';
 let cQs=[];
 
-function doLogin(){
-  const u=document.getElementById('lu').value.trim(),p=document.getElementById('lp').value.trim(),e=document.getElementById('lerr');
-  if(!u||!p){e.textContent='请填写账号和密码';e.style.display='block';return;}
-  if(u!==AU||p!==AP){e.textContent='❌ 账号或密码错误！';e.style.display='block';return;}
-  document.getElementById('loginPage').style.display='none';
-  document.getElementById('dashPage').style.display='block';
-  loadData();
-}
+// 页面加载时直接加载数据
+document.addEventListener('DOMContentLoaded', function(){ loadData(); });
 
-function doLogout(){location.href='/';}
+function doLogout(){
+  sessionStorage.removeItem('admin_auth');
+  sessionStorage.removeItem('admin_time');
+  location.href = '/';
+}
 
 // ==================== Data Loading ====================
 async function loadData(){

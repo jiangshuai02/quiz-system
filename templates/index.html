@@ -2191,8 +2191,7 @@ function renderLib() {
     cat.books.forEach(book => {
       const qCount = (book.qs || []).length;
       const dbCount = getBookQCount(book);
-      const hasDirect = book.qs && book.qs.length >= 8;
-      h += '<div class="lib-card" onclick="' + (hasDirect ? 'startBookQuizDirect(\'' + book.id + '\')' : 'openBookConfig(\'' + book.id + '\')') + '">';
+      h += '<div class="lib-card" onclick="openBookConfig(\'' + book.id + '\')">';
       h += '<div class="lib-card-title">' + escHtml(book.name) + '</div>';
       h += '<div class="lib-card-desc">' + escHtml(book.desc) + '</div>';
       if (book.author) h += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">\u{1F464} ' + escHtml(book.author) + '</div>';

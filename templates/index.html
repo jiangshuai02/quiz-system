@@ -2196,7 +2196,7 @@ function renderLib() {
       h += '<div class="lib-card-desc">' + escHtml(book.desc) + '</div>';
       if (book.author) h += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">\u{1F464} ' + escHtml(book.author) + '</div>';
       h += '<span class="lib-card-tag ' + book.tag + '" style="margin-top:6px">内置' + qCount + '题 ' + (dbCount > 0 ? '+ 库存' + dbCount + '题' : '') + '</span>';
-      h += '<div class="lib-card-action">' + (hasDirect ? '开始刷题 →' : '自定义出题 →') + '</div></div>';
+      h += '<div class="lib-card-action">自定义出题 →</div></div>';
     });
     h += '</div></div>';
   });

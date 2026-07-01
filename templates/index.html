@@ -610,19 +610,43 @@
             <!-- ===== 导入页面（仅管理员）===== -->
             <div id="import" class="page">
                 <div class="card">
-                    <h3>Word文档导入</h3>
+                    <h3>📄 Word文档导入</h3>
+
+                    <!-- 科目选择区域 -->
+                    <div style="background:#f8faf9;border:2px solid #b2dfdb;border-radius:10px;padding:18px;margin-bottom:20px;">
+                        <label style="font-weight:bold;color:#00695c;font-size:15px;display:block;margin-bottom:10px;">🎯 导入到哪个科目？</label>
+                        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                            <select id="import-subject-select" style="flex:1;min-width:200px;padding:10px 14px;border:2px solid #b2dfdb;border-radius:8px;font-size:15px;">
+                                <option value="">-- 选择已有科目 --</option>
+                            </select>
+                            <span style="color:#888;font-size:16px;font-weight:bold;">或</span>
+                            <input type="text" id="import-new-subject" placeholder="+ 新建科目（如：数学）"
+                                   style="flex:1;min-width:150px;padding:10px 14px;border:2px solid #e9ecef;border-radius:8px;font-size:15px;">
+                        </div>
+                    </div>
+
                     <div class="upload-area" id="upload-area">
                         <p style="font-size: 3em;">📄</p>
                         <p style="font-size:18px;font-weight:bold;margin:10px 0;">点击或拖拽Word文档到此区域</p>
-                        <p style="color:#888;font-size:14px;">支持 .docx 格式，自动识别题型与科目</p>
+                        <p style="color:#888;font-size:14px;">支持 .docx 格式，自动识别题型（单选/多选/判断/填空/简答）</p>
                         <input type="file" id="file-input" accept=".docx" class="hidden" onchange="handleFile()">
                     </div>
                     <div id="import-status"></div>
                 </div>
 
                 <div class="card">
-                    <h3 style="margin-bottom:15px;">手动添加题目</h3>
+                    <h3>✏️ 手动添加题目</h3>
                     <form id="add-question-form" onsubmit="return addQuestion(event)">
+                        <!-- 科目选择 -->
+                        <div style="margin-bottom:12px;">
+                            <label style="font-weight:bold;color:#333;font-size:14px;">📚 选择科目：</label>
+                            <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+                                <select id="aq-subject-select" style="flex:1;padding:10px;border:2px solid #b2dfdb;border-radius:8px;font-size:14px;"></select>
+                                <input type="text" id="aq-new-subject" placeholder="+ 新建科目"
+                                       style="width:140px;padding:10px;border:2px solid #e9ecef;border-radius:8px;font-size:13px;">
+                            </div>
+                        </div>
+
                         <select id="aq-type" style="width:100%;padding:12px;margin:8px 0;border:2px solid #e9ecef;border-radius:8px;">
                             <option value="single">单选题</option>
                             <option value="multiple">多选题</option>
@@ -630,9 +654,6 @@
                             <option value="fill">填空题</option>
                             <option value="essay">简答题</option>
                         </select>
-                        <input type="text" placeholder="所属科目（可选，默认为"默认科目"）"
-                               id="aq-subject"
-                               style="width:100%;padding:12px;margin:8px 0;border:2px solid #e9ecef;border-radius:8px;">
                         <textarea placeholder="题目内容" id="aq-question"
                                   style="width:100%;padding:12px;margin:8px 0;min-height:100px;border:2px solid #e9ecef;border-radius:8px;"></textarea>
                         <textarea placeholder="选项（每行一个，仅单选/多选需要）\n例如：A. 选项一\nB. 选项二"
@@ -642,7 +663,7 @@
                                style="width:100%;padding:12px;margin:8px 0;border:2px solid #e9ecef;border-radius:8px;">
                         <input type="text" placeholder="解析（可选）" id="aq-explanation"
                                style="width:100%;padding:12px;margin:8px 0;border:2px solid #e9ecef;border-radius:8px;">
-                        <button type="submit" class="btn btn-success" style="margin-top:10px;width:100%;">添加题目</button>
+                        <button type="submit" class="btn btn-success" style="margin-top:10px;width:100%;">➕ 添加题目</button>
                     </form>
                 </div>
             </div>
@@ -713,11 +734,32 @@ async function loadSubjects() {
         const res = await fetch('/api/subjects');
         const subjects = await res.json();
         const sel = document.getElementById('practice-subject-select');
-        sel.innerHTML = '<option value="__all__">全部题目 (' + countAll(subjects) + '道)</option>';
+
+        // 刷题页科目选择器
+        let totalQs = subjects.reduce((sum, s) => sum + s.count, 0);
+        sel.innerHTML = '<option value="__all__">全部题目 (' + totalQs + '道)</option>';
         subjects.forEach(s => {
             sel.innerHTML += '<option value="' + escapeHtml(s.name) + '">' +
                 escapeHtml(s.name) + ' (' + s.count + '道)</option>';
         });
+
+        // 导入页面科目选择器
+        const impSel = document.getElementById('import-subject-select');
+        if (impSel) {
+            impSel.innerHTML = '<option value="">-- 选择已有科目 --</option>';
+            subjects.filter(s => s.id > 0 || s.name !== '\u9ed8\u8ba4\u79d1\u76ee').forEach(s => {
+                impSel.innerHTML += '<option value="' + (s.id || '') + '">' + escapeHtml(s.name) + '</option>';
+            });
+        }
+
+        // 手动添加题目科目选择器
+        const addSel = document.getElementById('aq-subject-select');
+        if (addSel) {
+            addSel.innerHTML = '<option value="">-- 默认 --</option>';
+            subjects.filter(s => s.id > 0).forEach(s => {
+                addSel.innerHTML += '<option value="' + s.id + '">' + escapeHtml(s.name) + '</option>';
+            });
+        }
     } catch(e) { console.error('Load subjects error:', e); }
 }
 
@@ -804,7 +846,13 @@ function showQuestion() {
     } else {
         fillInput.classList.add('hidden');
         let html = '';
-        const opts = q.options || [];
+        let opts = q.options || [];
+
+        // 判断题：如果没有选项，自动生成正确/错误两个选项
+        if (q.type === 'judge' && (!opts || opts.length === 0)) {
+            opts = ['正确', '错误'];
+        }
+
         for (let i = 0; i < opts.length; i++) {
             let letter = String.fromCharCode(65 + i);
             html += '<div class="option-item" data-value="' + letter +
@@ -977,6 +1025,8 @@ function showFinishSummary() {
 }
 
 // ==================== 题库页面（按科目分组）====================
+let allSubjectsData = [];  // 保存科目数据供移动使用
+
 async function loadBank() {
     try {
         const [qsRes, subRes] = await Promise.all([
@@ -984,45 +1034,86 @@ async function loadBank() {
             fetch('/api/subjects')
         ]);
         const questions = await qsRes.json();
-        const subjects = await subRes.json();
+        allSubjectsData = await subRes.json();  // 保存供移动功能用
 
         document.getElementById('total-count').textContent =
-            '共 ' + questions.length + ' 道 | ' + subjects.length + ' 个科目';
+            '共 ' + questions.length + ' 道 | ' + allSubjectsData.length + ' 个科目';
 
         const container = document.getElementById('questions-bank-list');
 
-        if (subjects.length === 0) {
-            container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">暂无题目数据</div>';
+        if (allSubjectsData.length === 0) {
+            container.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">暂无题目数据，请先导入或添加题目</div>';
             return;
         }
 
         let html = '';
 
-        subjects.forEach(sub => {
-            const sqs = questions.filter(q => (q.subject || '\u9ed8\u8ba4\u79d1\u76ee') === sub.name);
+        // 管理员新建科目按钮
+        if (userRole === 'admin') {
+            html += '<div style="margin-bottom:20px;padding:15px;background:#f0fdf4;border:2px dashed #86efac;border-radius:10px;text-align:center;">';
+            html += '<button class="btn btn-primary" onclick="showNewSubjectDialog()" style="font-size:16px;padding:12px 28px;">➕ 新建科目</button>';
+            html += '</div>';
+        }
 
-            html += '<div class="subject-card">';
+        allSubjectsData.forEach(sub => {
+            // 匹配该科目的题目
+            const sqs = questions.filter(q => q.subject === sub.name);
+
+            html += '<div class="subject-card" data-subject-id="' + sub.id + '" data-subject="' + escapeHtml(sub.name) + '">';
+
+            // 科目标题栏
             html += '<div class="subject-title-row">';
             html += '<span class="subject-name">' + escapeHtml(sub.name) + '</span>';
-            html += '<div style="display:flex;align-items:center;gap:10px;">';
-            html += '<span class="subject-count-badge">' + sub.count + ' 道题</span>';
+            html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">';
+
+            // 题型统计
+            const typeStats = {};
+            sqs.forEach(q => { typeStats[q.type] = (typeStats[q.type] || 0) + 1; });
+            const typeLabels = {single:'单选', multiple:'多选', judge:'判断', fill:'填空', essay:'简答'};
+            Object.keys(typeStats).forEach(t => {
+                html += '<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:4px;font-size:11px;">' +
+                    (typeLabels[t] || t) + ' ' + typeStats[t] + '</span>';
+            });
+
+            html += '<span class="subject-count-badge">' + sqs.length + ' 道题</span>';
+
+            if (userRole === 'admin') {
+                html += '<button class="expand-toggle" style="background:#fff3e0;border-color:#ffb74d;color:#e65100;" ' +
+                    'onclick="editSubject(' + sub.id + ', \'' + escapeHtml(sub.name).replace(/'/g, "\\'") + '\')">✏️ 编辑</button> ';
+                if (!sub.description || sub.description !== '(旧数据)') {
+                    html += '<button class="expand-toggle" style="background:#ffebee;border-color:#ef9a9a;color:#c62828;" ' +
+                        'onclick="deleteSubjectConfirm(' + sub.id + ', \'' + escapeHtml(sub.name).replace(/'/g, "\\'") + '\')">🗑️ 删除</button>';
+                }
+            }
+
             html += '<button class="expand-toggle" onclick="toggleSubject(this)">收起 ▲</button>';
             html += '</div></div>';
 
+            // 题目列表
             html += '<div class="subject-questions">';
-            sqs.forEach((q, idx) => {
-                html += '<div class="mini-question-item">';
-                html += '<span class="mini-q-text" title="' + escapeHtml(q.question) + '">' +
-                    (idx + 1) + '. ' + escapeHtml(q.question.substring(0, 60)) +
-                    (q.question.length > 60 ? '...' : '') + '</span>';
-                html += '<div class="mini-q-meta">';
-                html += '<span class="mini-type-tag">' + getTypeName(q.type) + '</span>';
-                if (userRole === 'admin') {
-                    html += '<button class="btn btn-danger btn-sm" onclick="deleteQuestion(' +
-                        q.id + ')">删除</button>';
-                }
-                html += '</div></div>';
-            });
+            if (sqs.length === 0) {
+                html += '<p style="text-align:center;color:#bbb;padding:20px;">暂无题目</p>';
+            } else {
+                sqs.forEach((q, idx) => {
+                    html += '<div class="mini-question-item">';
+                    html += '<span class="mini-q-text" title="' + escapeHtml(q.question) + '">' +
+                        (idx + 1) + '. [' + getTypeName(q.type) + '] ' + escapeHtml(q.question.substring(0, 55)) +
+                        (q.question.length > 55 ? '...' : '') + '</span>';
+                    html += '<div class="mini-q-meta">';
+                    html += '<span class="mini-type-tag">' + getTypeName(q.type) + '</span>';
+                    if (userRole === 'admin') {
+                        html += '<select onchange="moveQuestionTo(' + q.id + ', this.value); this.value=\'\';" ' +
+                            'style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:11px;color:#666;">' +
+                            '<option value="">📦 移动到...</option>';
+                        allSubjectsData.filter(s2 => s2.name !== sub.name && (!s2.description || s2.description !== '(旧数据)')).forEach(s2 => {
+                            html += '<option value="' + s2.id + '">' + escapeHtml(s2.name) + '</option>';
+                        });
+                        html += '</select>';
+                        html += '<button class="btn btn-danger btn-sm" onclick="deleteQuestion(' + q.id + ')">删除</button>';
+                    }
+                    html += '</div></div>';
+                });
+            }
             html += '</div></div>';
         });
 
@@ -1038,6 +1129,102 @@ function toggleSubject(btn) {
     const card = btn.closest('.subject-card');
     card.classList.toggle('collapsed');
     btn.textContent = card.classList.contains('collapsed') ? '展开 ▼' : '收起 ▲';
+}
+
+async function moveQuestionTo(qid, targetSubjectId) {
+    if (!targetSubjectId) return;
+
+    try {
+        const res = await fetch('/api/move_question', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({question_ids: [qid], target_subject_id: parseInt(targetSubjectId)})
+        });
+        const result = await res.json();
+        if (result.success) {
+            alert(result.message);
+            loadBank();
+            loadSubjects();
+        } else {
+            alert('移动失败：' + result.error);
+        }
+    } catch(e) {
+        alert('请求失败：' + e.message);
+    }
+}
+
+function showNewSubjectDialog() {
+    const name = prompt('请输入新科目名称：', '');
+    if (!name || !name.trim()) return;
+
+    fetch('/api/subjects', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: name.trim()})
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) {
+            alert('✅ 科目「' + result.name + '」创建成功！');
+            loadBank();
+            loadSubjects();
+        } else {
+            alert('创建失败：' + result.error);
+        }
+    })
+    .catch(e => alert('请求失败：' + e.message));
+}
+
+function editSubject(sid, oldName) {
+    const newName = prompt('修改科目名称：', oldName);
+    if (!newName || newName.trim() === '' || newName.trim() === oldName) return;
+
+    fetch('/api/subjects/' + sid, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: newName.trim()})
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) {
+            alert('✅ 已修改为「' + result.name + '」');
+            loadBank();
+            loadSubjects();
+        } else {
+            alert('修改失败：' + result.error);
+        }
+    })
+    .catch(e => alert('修改失败：' + e.message));
+}
+
+function deleteSubjectConfirm(sid, subjectName) {
+    const msg = sid > 0
+        ? `确定要删除科目「${subjectName}」吗？\n其下的所有题目将移至「默认科目」。`
+        : `确定要删除「${subjectName}」下的所有题目吗？\n此操作不可恢复！`;
+    if (!confirm(msg)) return;
+
+    if (sid > 0) {
+        fetch('/api/subjects/' + sid, {method: 'DELETE'})
+        .then(r => r.json())
+        .then(result => {
+            alert(result.message || '删除成功');
+            loadBank();
+            loadSubjects();
+        }).catch(e => alert('删除失败：' + e.message));
+    } else {
+        // 删除旧数据科目
+        fetch('/api/delete_subject', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({subject_name: subjectName})
+        })
+        .then(r => r.json())
+        .then(result => {
+            alert(result.message || '删除成功');
+            loadBank();
+            loadSubjects();
+        }).catch(e => alert('删除失败：' + e.message));
+    }
 }
 
 // ==================== 错题本 ====================
@@ -1116,19 +1303,40 @@ async function uploadFile(file) {
     if (!file) return;
     const formData = new FormData();
     formData.append('file', file);
+
+    // 获取科目选择
+    const subjectId = document.getElementById('import-subject-select').value || '';
+    const newSubjectName = document.getElementById('import-new-subject').value.trim() || '';
+
+    if (subjectId) formData.append('subject_id', subjectId);
+    if (newSubjectName) formData.append('new_subject_name', newSubjectName);
+
+    // 验证：必须选择或新建一个科目
+    if (!subjectId && !newSubjectName) {
+        alert('请先选择一个科目，或新建一个新科目！');
+        return;
+    }
+
     document.getElementById('import-status').innerHTML =
         '<p style="color:#26a69a;padding:15px;">⏳ 正在导入中...</p>';
 
-    const res = await fetch('/api/import_word', { method: 'POST', body: formData });
-    const result = await res.json();
+    try {
+        const res = await fetch('/api/import_word', { method: 'POST', body: formData });
+        const result = await res.json();
 
-    if (result.error) {
+        if (result.error) {
+            document.getElementById('import-status').innerHTML =
+                '<p style="color:#dc3545;padding:15px;">❌ 错误：' + result.error + '</p>';
+        } else {
+            document.getElementById('import-status').innerHTML =
+                '<p style="color:#28a745;padding:15px;">✅ ' + (result.message || ('成功导入 ' + result.count + ' 道题目！')) + '</p>';
+            loadSubjects();
+            // 清空输入
+            document.getElementById('import-new-subject').value = '';
+        }
+    } catch(e) {
         document.getElementById('import-status').innerHTML =
-            '<p style="color:#dc3545;padding:15px;">❌ 错误：' + result.error + '</p>';
-    } else {
-        document.getElementById('import-status').innerHTML =
-            '<p style="color:#28a745;padding:15px;">✅ 成功导入 ' + result.count + ' 道题目！</p>';
-        loadSubjects();
+            '<p style="color:#dc3545;padding:15px;">❌ 上传失败：' + e.message + '</p>';
     }
 }
 
@@ -1136,7 +1344,34 @@ async function uploadFile(file) {
 async function addQuestion(event) {
     event.preventDefault();
     const type = document.getElementById('aq-type').value;
-    const subject = document.getElementById('aq-subject').value.trim() || '\u9ed8\u8ba4\u79d1\u76ee';
+
+    // 获取科目：优先使用下拉选择，其次用新建输入
+    let subjectId = null;
+    let subjectName = '\u9ed8\u8ba4\u79d1\u76ee';
+    const selVal = document.getElementById('aq-subject-select').value;
+    const newSubName = document.getElementById('aq-new-subject').value.trim();
+
+    if (newSubName) {
+        // 新建科目
+        // 先尝试创建科目
+        const createRes = await fetch('/api/subjects', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name: newSubName})
+        });
+        const createResult = await createRes.json();
+        if (createResult.success) {
+            subjectId = createResult.id;
+        } else if (createResult.id) {
+            // 已存在，直接用
+            subjectId = createResult.id;
+        }
+        subjectName = newSubName;
+        document.getElementById('aq-new-subject').value = '';
+    } else if (selVal) {
+        subjectId = parseInt(selVal);
+    }
+
     const question = document.getElementById('aq-question').value.trim();
     const optionsText = document.getElementById('aq-options').value.trim();
     const answer = document.getElementById('aq-answer').value.trim();
@@ -1149,11 +1384,14 @@ async function addQuestion(event) {
 
     const options = optionsText.split('\n').filter(o => o.trim());
 
+    const bodyData = {type, question, options, answer, explanation};
+    if (subjectId) bodyData.subject_id = subjectId;
+    else bodyData.subject_name = subjectName;
+
     const res = await fetch('/api/questions', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({type:type, question:question, options:options,
-                              answer:answer, explanation:explanation, subject:subject})
+        body: JSON.stringify(bodyData)
     });
 
     const result = await res.json();
@@ -1163,7 +1401,6 @@ async function addQuestion(event) {
         document.getElementById('aq-options').value = '';
         document.getElementById('aq-answer').value = '';
         document.getElementById('aq-explanation').value = '';
-        document.getElementById('aq-subject').value = '';
         loadSubjects();
     } else {
         alert('添加失败：' + result.error);
@@ -1183,6 +1420,13 @@ async function deleteQuestion(qid) {
     } else {
         alert('删除失败：' + result.error);
     }
+}
+
+// ==================== 工具函数 ====================
+    .catch(e => {
+        console.error('Delete error:', e);
+        alert('删除请求失败');
+    });
 }
 
 // ==================== 工具函数 ====================

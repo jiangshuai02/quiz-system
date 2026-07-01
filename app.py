@@ -194,6 +194,39 @@ def migrate_db():
         if migrated > 0:
             print(f"MIGRATE: Migrated {migrated} legacy questions to subjects table")
 
+    # 5. 清洗已有脏数据：题目文本中的答案泄露、选项只有字母等
+    if 'questions' in table_names:
+        dirty_qs = db.session.execute(
+            sa.text("SELECT id, question, options FROM questions WHERE question LIKE '%答案%' OR question LIKE '%答案:%' OR options LIKE 'A|B|C|D%' OR options = 'A|B|C|D'")
+        ).fetchall()
+        cleaned_count = 0
+        for row in dirty_qs:
+            qid, qtext, opts = row[0], row[1], row[2] or ''
+            new_qtext = re.sub(r'\s*[（(]?\s*\[?[单选|多选|判断|填空|简选|选择题]*\]?\s*[）)]?\s*', '', qtext)
+            # 去掉末尾的"答案：xxx"（支持多种格式）
+            new_qtext = re.sub(r'\s*答案[：:]\s*[^\n]*$', '', new_qtext).strip()
+            # 去掉末尾残留的括号答案标注
+            new_qtext = re.sub(r'\s*[（(]\s*(正确|错误|[ABCD])\s*[）)]?\s*$', '', new_qtext).strip()
+            # 去掉题号前缀（如 "14. " 或 "1、"）
+            new_qtext = re.sub(r'^\d+[\.\、\)\s]+', '', new_qtext).strip()
+            
+            # 修复只有字母的选项：标记为空，提示用户重新导入
+            new_opts = opts
+            if opts:
+                opt_parts = opts.split('|')
+                if all(len(p.strip()) <= 2 and p.strip().upper() in ('A','B','C','D') for p in opt_parts):
+                    new_opts = ''  # 清空无效选项
+            
+            if new_qtext != qtext or new_opts != opts:
+                db.session.execute(
+                    sa.text("UPDATE questions SET question = :q, options = :o WHERE id = :id"),
+                    {'id': qid, 'q': new_qtext, 'o': new_opts}
+                )
+                cleaned_count += 1
+        
+        if cleaned_count > 0:
+            print(f"MIGRATE: Cleaned {cleaned_count} dirty questions (removed leaked answers, fixed empty options)")
+
     db.session.commit()
 
 
@@ -240,7 +273,15 @@ def identify_type(text, opts=''):
     return 'essay', [], extract_essay(text)
 
 def extract_opts(text):
-    return [m.group(1).strip() for m in re.finditer(r'([A-D])[\.\u3001\)](.*?)(?=[A-D][\.\u3001\)]|$)', text + ' ', re.DOTALL)]
+    """提取选项文本（返回选项内容，不含字母前缀）"""
+    results = []
+    for m in re.finditer(r'([A-D])[\.\u3001\)](.*?)(?=[A-D][\.\u3001\)]|$)', text + ' ', re.DOTALL):
+        opt_text = m.group(2).strip()
+        # 如果提取到的文本为空或只有字母，则保留 "字母.原始" 格式
+        if not opt_text or len(opt_text) <= 2 and opt_text.upper() in ('A','B','C','D'):
+            opt_text = m.group(0).strip()
+        results.append(opt_text)
+    return results
 
 def extract_single(text):
     m = re.search(r'\u7b54\u6848[：:]\s*([A-D])', text)

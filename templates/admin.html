@@ -28,6 +28,10 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang S
 .dbtn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
 .dbtn-p{background:var(--p);color:#fff;border-color:var(--p)}
 .dbtn-d{background:var(--d);color:#fff;border-color:var(--d)}
+.dbtn-s{background:var(--s);color:#fff;border-color:var(--s)}
+.dbtn-sm{padding:4px 10px;font-size:12px}
+.dbtn-danger-sm{padding:3px 9px;font-size:11px;background:var(--d-l);color:#991b1b;border:1px solid #fecaca;border-radius:6px;cursor:pointer;font-weight:600}
+.dbtn-danger-sm:hover{background:var(--d);color:#fff}
 
 .dmain{padding:24px}
 
@@ -45,6 +49,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang S
 .sec{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);margin-bottom:18px;overflow:hidden}
 .sech{display:flex;align-items:center;justify-content:space-between;padding:15px 20px;border-bottom:1px solid #f1f5f9;font-size:15px;font-weight:700;flex-wrap:wrap;gap:8px}
 .sech-l{display:flex;align-items:center;gap:8px}
+.sech-r{display:flex;align-items:center;gap:8px}
 .secb{padding:16px 20px}
 
 .tbl{width:100%;border-collapse:collapse;font-size:13px}
@@ -77,25 +82,29 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang S
 .toast{position:fixed;top:20px;right:20px;background:var(--tx);color:#fff;padding:12px 22px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;animation:si .3s ease}
 @keyframes si{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
 
+/* Upload area */
+.up-area{border:2px dashed var(--bd);border-radius:var(--r);padding:30px;text-align:center;cursor:pointer;transition:.2s;background:#fafbfc}
+.up-area:hover{border-color:var(--p);background:#eff6ff}
+.up-area.dragover{border-color:var(--p);background:#dbeafe}
+
+/* Subject item */
+.si{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #f1f5f9;transition:.15s}
+.si:hover{background:#fefefe}
+.si-name{flex:1;font-weight:600;font-size:14px}
+.si-count{font-size:12px;color:var(--t2);background:var(--bg);padding:2px 10px;border-radius:20px}
+.si-actions{display:flex;gap:6px}
+
 @media(max-width:768px){.srow{grid-template-columns:repeat(2,1fr)}.dnav{padding:10px 14px}.mo{padding:22px}}
 @media(max-width:480px){.srow{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 
-<!-- AUTH CHECK -->
-<script>
-if(sessionStorage.getItem('admin_auth') !== 'ok') { location.href = '/'; }
-</script>
+<script>if(sessionStorage.getItem('admin_auth') !== 'ok'){ location.href = '/'; }</script>
 
-<!-- DASHBOARD -->
-<div class="dp" id="dashPage">
+<div class="dp">
   <div class="dnav">
-    <div class="dnav-l">
-      <span style="font-size:22px">📊</span>
-      <span class="dnav-logo">管理后台</span>
-      <span style="font-size:11px;color:var(--t2)">智能刷题系统控制中心</span>
-    </div>
+    <div class="dnav-l"><span style="font-size:22px">📊</span><span class="dnav-logo">管理后台</span><span style="font-size:11px;color:var(--t2)">智能刷题系统控制中心</span></div>
     <div class="dnav-r">
       <span style="font-size:12px;color:var(--t2)"><strong>姜帅</strong> | 管理员</span>
       <a href="/" class="dbtn">🏠 返回首页</a>
@@ -104,6 +113,7 @@ if(sessionStorage.getItem('admin_auth') !== 'ok') { location.href = '/'; }
   </div>
 
   <div class="dmain">
+
     <!-- Stats -->
     <div class="srow">
       <div class="sc b1"><div class="sn" id="stU">-</div><div class="sl">👥 活跃用户数</div></div>
@@ -112,26 +122,35 @@ if(sessionStorage.getItem('admin_auth') !== 'ok') { location.href = '/'; }
       <div class="sc b4"><div class="sn" id="stR">-</div><div class="sl">📈 平均正确率</div></div>
     </div>
 
-    <!-- Users Table -->
+    <!-- ===== 1. 用户答题记录总览 ===== -->
     <div class="sec">
-      <div class="sech"><div class="sech-l"><span>👥</span> 用户答题记录总览</div><button class="dbtn" onclick="loadData()">🔄 刷新数据</button></div>
+      <div class="sech">
+        <div class="sech-l"><span>👥</span> 用户答题记录总览</div>
+        <div class="sech-r">
+          <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="uaAll" onchange="toggleUserSel()"> 全选用户</label>
+          <button class="dbtn dbtn-d dbtn-sm" onclick="batchDelUsers()" id="buBtn">🗑️ 批量删除</button>
+          <button class="dbtn" onclick="loadData()">🔄 刷新</button>
+        </div>
+      </div>
       <div class="secb" id="utArea"><div class="emp"><span class="ei">⏳</span><div class="em">加载中...</div></div></div>
     </div>
 
     <!-- Two columns -->
     <div style="display:grid;grid-template-columns:1.2fr .8fr;gap:18px">
+
+      <!-- User Detail Panel -->
       <div class="sec" id="detailSec" style="display:none">
-        <div class="sech" id="detailHead"><div class="sech-l"><span>📋</span> <span id="dtName">用户详情</span></div><button class="dbtn" onclick="closeDetail()">✕ 关闭</button></div>
+        <div class="sech" id="detailHead"><div class="sech-l"><span>📋</span><span id="dtName">用户详情</span></div><button class="dbtn" onclick="closeDetail()">✕ 关闭</button></div>
         <div class="secb" id="dtBody"></div>
       </div>
+
+      <!-- Batch Delete Questions -->
       <div class="sec">
         <div class="sech"><div class="sech-l"><span>🗑️</span> 批量删除题目</div></div>
         <div class="secb">
-          <div style="margin-bottom:12px">
-            <label style="font-size:12px;font-weight:600;color:var(--t2)">选择科目：</label>
-            <select class="sel" id="dsel" onchange="loadQs()" style="width:100%"></select>
-          </div>
-          <div id="dlist" style="max-height:260px;overflow-y:auto;border:1px solid var(--bd);border-radius:8px;display:none"></div>
+          <label style="font-size:12px;font-weight:600;color:var(--t2)">选择科目：</label>
+          <select class="sel" id="dsel" onchange="loadQs()" style="width:100%;margin-top:6px"></select>
+          <div id="dlist" style="max-height:240px;overflow-y:auto;border:1px solid var(--bd);border-radius:8px;margin-top:10px;display:none"></div>
           <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
             <label style="font-size:12px;cursor:pointer"><input type="checkbox" id="dsa" onchange="toggleA()"> 全选</label>
             <span id="dsc" style="font-size:12px;color:var(--tm)"></span>
@@ -140,269 +159,409 @@ if(sessionStorage.getItem('admin_auth') !== 'ok') { location.href = '/'; }
           </div>
         </div>
       </div>
+
     </div>
 
-    <!-- Backup -->
+    <!-- ===== 2. 科目管理 ===== -->
+    <div class="sec">
+      <div class="sech">
+        <div class="sech-l"><span>📚</span> 科目管理</div>
+        <div class="sech-r">
+          <button class="dbtn dbtn-d dbtn-sm" onclick="batchDelSubs()" id="bsBtn">🗑️ 批量删科目</button>
+        </div>
+      </div>
+      <div class="secb" id="subArea"><div class="emp"><span class="ei">⏳</span><div class="em">加载中...</div></div></div>
+    </div>
+
+    <!-- ===== 3. 导入题库 ===== -->
+    <div class="sec">
+      <div class="sech"><div class="sech-l"><span>📄</span> 题库导入</div></div>
+      <div class="secb">
+        <div class="up-area" id="upArea" onclick="document.getElementById('impFile').click()">
+          <div style="font-size:40px;margin-bottom:8px">📁</div>
+          <div style="font-size:15px;font-weight:700;color:var(--tx)">点击或拖拽文件到此处上传</div>
+          <div style="font-size:12px;color:var(--tm);margin-top:4px">支持 .docx / .txt 格式（Word文档或纯文本）</div>
+          <input type="file" id="impFile" accept=".docx,.txt" style="display:none" onchange="handleFile(this.files[0])">
+        </div>
+        <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <label style="font-size:12px;font-weight:600;color:var(--t2)">导入到科目：</label>
+          <select class="sel" id="impSub" style="flex:1;min-width:120px"><option value="">自动识别（默认按文件内容）</option></select>
+          <button class="dbtn dbtn-p" id="impBtn" onclick="doImport()" disabled style="opacity:.5">📥 开始导入</button>
+        </div>
+        <div id="impResult" style="margin-top:10px"></div>
+      </div>
+    </div>
+
+    <!-- ===== 4. 备份导出 ===== -->
     <div class="sec">
       <div class="sech"><div class="sech-l"><span>💾</span> 数据备份与导出</div></div>
       <div class="secb" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-        <div style="font-size:13px;color:var(--t2);flex:1">将全部科目和题目导出为 JSON 文件。</div>
+        <div style="font-size:13px;color:var(--t2);flex:1">将全部数据导出为 JSON 文件，用于备份或迁移。</div>
         <button class="dbtn dbtn-p" onclick="backup()">📥 下载完整备份</button>
       </div>
     </div>
-  </div>
+
+  </div><!-- /.dmain -->
 
   <!-- Wrong Questions Modal -->
   <div class="mol" id="wrModal" onclick="if(event.target===this)this.classList.remove('show')">
-    <div class="mo">
-      <div class="moh"><div class="mot" id="wmTitle">错题记录</div><button class="dbtn" onclick="document.getElementById('wrModal').classList.remove('show')">✕</button></div>
-      <div id="wmBody"></div>
-    </div>
+    <div class="mo"><div class="moh"><div class="mot" id="wmTitle">错题记录</div><button class="dbtn" onclick="document.getElementById('wrModal').classList.remove('show')">✕</button></div><div id="wmBody"></div></div>
   </div>
+
 </div>
 
 <!-- ==================== MAIN JS ==================== -->
 <script>
 /* ===== 工具函数 ===== */
-function esc(s){ /* HTML转义 */
-  if(!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function ea(s){ /* 属性转义 */
-  if(!s) return '';
-  return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;');
-}
-function gt(t){ /* 题型名称 */
-  return {single:'单选',multiple:'多选',judge:'判断',fill:'填空',essay:'简答'}[t] || t || '';
-}
-function toast(msg){ /* 提示条 */
-  const el = document.createElement('div');
-  el.className = 'toast'; el.textContent = msg;
-  document.body.appendChild(el);
+function esc(s){ if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function ea(s){ if(!s)return '';return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function gt(t){ return {single:'单选',multiple:'多选',judge:'判断',fill:'填空',essay:'简答'}[t]||t||''; }
+function toast(msg){
+  const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);
   setTimeout(()=>el.remove(),2500);
 }
 
-/* ===== 变量 ===== */
-let cQs = [];
+let cQs=[], allUsers=[], allSubs=[];
 
-/* ===== 初始化 ===== */
+/* ===== Init ===== */
 document.addEventListener('DOMContentLoaded', function(){ loadData(); });
 
-function doLogout(){
-  sessionStorage.removeItem('admin_auth');
-  sessionStorage.removeItem('admin_time');
-  location.href = '/';
-}
+function doLogout(){ sessionStorage.removeItem('admin_auth');sessionStorage.removeItem('admin_time');location.href='/'; }
 
-/* ===== API 封装 ===== */
+/* ===== API ===== */
 async function apiGet(url){
-  const r = await fetch(url);
-  if(!r.ok){
-    if(r.status === 401 || r.status === 302) throw new Error('登录已过期');
-    const t = await r.text().catch(()=>'');
-    throw new Error('服务器错误('+r.status+'): '+t.slice(0,80));
-  }
+  const r=await fetch(url);
+  if(!r.ok){if(r.status===401||r.status===302)throw new Error('登录已过期');const t=await r.text().catch(()=>'');throw new Error('服务器错误('+r.status+'): '+t.slice(0,80));}
   return r.json();
 }
-
 async function apiPost(url,body){
-  const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(!r.ok){
-    if(r.status===401||r.status===403) throw new Error('权限不足或登录已过期');
-    const t = await r.text().catch(()=>'');
-    throw new Error('操作失败('+r.status+'): '+t.slice(0,80));
-  }
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok){if(r.status===401||r.status===403)throw new Error('权限不足');const t=await r.text().catch(()=>'');throw new Error('操作失败('+r.status+'): '+t.slice(0,80));}
   return r.json();
 }
 
 /* ===== 数据加载 ===== */
 async function loadData(){
-  const a = document.getElementById('utArea');
-  a.innerHTML = '<div class="emp"><span class="ei">⏳</span><div class="em">加载中...</div><div class="es">正在从服务器获取数据</div></div>';
+  const a=document.getElementById('utArea');
+  a.innerHTML='<div class="emp"><span class="ei">⏳</span><div class="em">加载数据中...</div></div>';
   try{
-    const [users, subs] = await Promise.all([
-      apiGet('/api/admin/users'),
-      apiGet('/api/subjects')
-    ]);
-    renderStats(users, subs);
+    const [users,subs]=await Promise.all([apiGet('/api/admin/users'),apiGet('/api/subjects')]);
+    allUsers=users;allSubs=subs;
+    renderStats(users,subs);
     renderTable(users);
     fillSel(subs);
+    fillImpSub(subs);
+    renderSubjects(subs);
   }catch(e){
-    console.error('[loadData]', e);
-    a.innerHTML = `<div class="emp"><span class="ei">❌</span><div class="em">加载数据失败</div><div class="es" style="color:var(--d)">${esc(e.message)}<br><br><a href="/" style="color:var(--p)">← 返回首页重新进入</a></div></div>`;
+    console.error('[loadData]',e);
+    a.innerHTML=`<div class="emp"><span class="ei">❌</span><div class="em">加载失败</div><div class="es" style="color:var(--d)">${esc(e.message)}</div></div>`;
     toast('❌ '+e.message);
   }
 }
 
-function renderStats(u, s){
-  let ta=0, tok=0, qc=0;
-  document.getElementById('stU').textContent = u.length;
-  u.forEach(x => { ta += (x.total_answered||0); tok += (x.correct||0); });
-  document.getElementById('stA').textContent = ta;
-  s.forEach(x => { qc += (x.count||0); });
-  document.getElementById('stQ').textContent = qc;
-  document.getElementById('stR').textContent = ta ? (tok/ta*100).toFixed(1)+'%' : '0%';
+function renderStats(u,s){
+  let ta=0,tok=0,qc=0;
+  document.getElementById('stU').textContent=u.length;
+  u.forEach(x=>{ta+=(x.total_answered||0);tok+=(x.correct||0);});
+  document.getElementById('stA').textContent=ta;
+  s.forEach(x=>{qc+=(x.count||0);});
+  document.getElementById('stQ').textContent=qc;
+  document.getElementById('stR').textContent=ta?(tok/ta*100).toFixed(1)+'%':'0%';
 }
 
+/* ===== 用户表格 ===== */
 function renderTable(users){
-  const a = document.getElementById('utArea');
-  if(!users.length){
-    a.innerHTML = `<div class="emp"><span class="ei">👤</span><div class="em">暂无用户答题记录</div><div class="es">当用户答题后会显示在这里</div></div>`;
-    return;
-  }
-  let h = `<table class="tbl"><thead><tr>
-    <th>#</th><th>用户名</th><th>答题总数</th><th>答对数</th><th>正确率</th>
-    <th>首次答题</th><th>最后活跃</th><th>IP地址</th><th>操作</th>
+  const a=document.getElementById('utArea');
+  if(!users.length){a.innerHTML=`<div class="emp"><span class="ei">👤</span><div class="em">暂无用户记录</div><div class="es">用户答题后会显示在这里</div></div>`;return;}
+
+  let h=`<table class="tbl"><thead><tr>
+    <th style="width:30px"><input type="checkbox" id="utHeadCb" onchange="toggleUserSel()"></th>
+    <th>#</th><th>用户名</th><th>答题总数</th><th>答对数</th><th>正确率</th><th>首次答题</th><th>最后活跃</th><th>IP地址</th><th>操作</th>
     </tr></thead><tbody>`;
-  users.forEach((u, i) => {
-    const ac = u.accuracy||0, bg = ac>=60 ? 'bg' : 'br';
-    const nameE = ea(u.name||'未命名');
-    h += `<tr>
+
+  users.forEach((u,i)=>{
+    const ac=u.accuracy||0,bg=ac>=60?'bg':'br';
+    const nameE=ea(u.name||'未命名'), nameRaw=u.name||'未命名';
+    h+=`<tr data-name="${nameE}">
+      <td><input type="checkbox" class="ucb" value="${nameE}" onchange="updUserSel()"></td>
       <td>${i+1}</td>
       <td style="font-weight:800">${esc(u.name)||'未命名'}</td>
       <td>${u.total_answered||0}</td>
       <td>${u.correct||0}</td>
       <td><span class="badge ${bg}">${ac}%</span></td>
-      <td style="color:var(--tm);font-size:12px">${u.first_seen||'-'}</td>
-      <td style="color:var(--tm);font-size:12px">${u.last_seen||'-'}</td>
+      <td>${u.first_seen||'-'}</td>
+      <td>${u.last_seen||'-'}</td>
       <td style="color:var(--tm);font-size:12px;max-width:110px;overflow:hidden;text-overflow:ellipsis" title="${ea(u.ips)}">${u.ips||'-'}</td>
-      <td><button class="dbtn" onclick="showDetail('${nameE}',this)">📋 详情</button>
-      <button class="dbtn" onclick="showWrong('${nameE}')">❌ 错题</button></td>
+      <td>
+        <button class="dbtn dbtn-sm" onclick="showDetail('${nameE}',this)">📋 详情</button>
+        <button class="dbtn dbtn-sm" onclick="showWrong('${nameE}')">❌ 错题</button>
+        <button class="dbtn-danger-sm" onclick="delOneUser('${nameE}',this)">🗑 删除</button>
+      </td>
     </tr>`;
   });
-  h += '</tbody></table>';
-  a.innerHTML = h;
+  h+='</tbody></table>';
+  a.innerHTML=h;
+}
+
+/* ===== 用户选择/删除 ===== */
+function toggleUserSel(){
+  const c=document.getElementById('utHeadCb').checked||document.getElementById('uaAll').checked;
+  document.querySelectorAll('.ucb').forEach(cb=>cb.checked=c);
+  updUserSel();
+}
+function updUserSel(){
+  const n=document.querySelectorAll('.ucb:checked').length;
+  document.getElementById('buBtn').textContent='🗑️ 批量删除'+(n?'('+n+'人)':'');
+  document.getElementById('buBtn').disabled=!n;
+  document.getElementById('utHeadCb').checked=n===document.querySelectorAll('.ucb').length;
+  document.getElementById('uaAll').checked=document.getElementById('utHeadCb').checked;
+}
+
+async function delOneUser(name,btn){
+  if(!confirm(`确定删除用户「${name}」的所有答题记录？此操作不可恢复！`))return;
+  btn.disabled=true;btn.textContent='...';
+  try{
+    const d=await apiPost('/api/admin/delete_user',{name});
+    toast(`✅ ${d.message}`);
+    loadData();
+  }catch(e){toast('删除失败：'+e.message);}
+  finally{btn.disabled=false;btn.textContent='🗑 删除';}
+}
+
+async function batchDelUsers(){
+  const names=[...document.querySelectorAll('.ucb:checked')].map(cb=>cb.value);
+  if(!names.length){toast('请先勾选要删除的用户');return;}
+  if(!confirm(`确定永久删除 ${names.length} 个用户的全部答题记录？`))return;
+  const b=document.getElementById('buBtn');b.disabled=true;b.textContent='⏳...';
+  try{
+    const d=await apiPost('/api/admin/batch_delete_users',{names});
+    toast(`✅ ${d.message}`);
+    loadData();
+  }catch(e){toast('批量删除失败：'+e.message);}
+  finally{b.disabled=false;b.textContent='🗑️ 批量删除';updUserSel();}
 }
 
 /* ===== 用户详情 ===== */
-async function showDetail(name, row){
-  const ds = document.getElementById('detailSec');
-  document.getElementById('dtName').textContent = '📋 '+name+' 的详细信息';
-  const body = document.getElementById('dtBody');
+async function showDetail(name,row){
+  const ds=document.getElementById('detailSec');
+  document.getElementById('dtName').textContent='📋 '+name+' 的详细信息';
+  const body=document.getElementById('dtBody');
   try{
-    const recs = await apiGet('/api/admin/user_detail?name='+encodeURIComponent(name));
-    const cells = row.parentNode.cells;
-
-    let h = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px">`;
-    h += `<div style="background:#eff6ff;padding:14px;border-radius:10px;text-align:center"><div style="font-size:11px;color:var(--t2)">答题总数</div><div style="font-size:24px;font-weight:900;color:var(--p)">${cells[2].textContent}</div></div>`;
-    h += `<div style="background:#f0fdf4;padding:14px;border-radius:10px;text-align:center"><div style="font-size:11px;color:var(--t2)">答对数量</div><div style="font-size:24px;font-weight:900;color:var(--s)">${cells[3].textContent}</div></div>`;
-    const rate = parseFloat(cells[4].textContent)||0;
-    const rateColor = rate>=60 ? 'var(--s)' : 'var(--d)';
-    h += `<div style="background:#fefce8;padding:14px;border-radius:10px;text-align:center"><div style="font-size:11px;color:var(--t2)">正确率</div><div style="font-size:24px;font-weight:900;color:${rateColor}">${cells[4].textContent}</div></div>`;
-    h += '</div>';
-
-    h += `<h4 style="font-size:14px;font-weight:700;margin-bottom:10px;color:var(--t2)">最近错题（${recs.length}道）</h4>`;
-    if(!recs.length){
-      h += `<div class="emp"><span class="ei">🎉</span><div class="em">太棒了！没有错题记录</div></div>`;
-    }else{
-      const tm={single:'单选',multiple:'多选',judge:'判断',fill:'填空',essay:'简答'};
+    const recs=await apiGet('/api/admin/user_detail?name='+encodeURIComponent(name));
+    const cells=row.parentNode.cells;
+    let h=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px">`;
+    h+=`<div style="background:#eff6ff;padding:14px;border-radius:10px;text-align:center"><div style="font-size:11px;color:var(--t2)">答题总数</div><div style="font-size:24px;font-weight:900;color:var(--p)">${cells[3].textContent}</div></div>`;
+    h+=`<div style="background:#f0fdf4;padding:14px;border-radius:10px;text-align:center"><div style="font-size:11px;color:var(--t2)">答对数量</div><div style="font-size:24px;font-weight:900;color:var(--s)">${cells[4].textContent}</div></div>`;
+    const rate=parseFloat(cells[5].textContent)||0;
+    h+=`<div style="background:#fefce8;padding:14px;border-radius:10px;text-align:center"><div style="font-size:11px;color:var(--t2)">正确率</div><div style="font-size:24px;font-weight:900;color:${rate>=60?'var(--s)':'var(--d)'}">${cells[5].textContent}</div></div>`;
+    h+='</div>';
+    h+=`<h4 style="font-size:14px;font-weight:700;margin-bottom:10px;color:var(--t2)">最近错题（${recs.length}道）</h4>`;
+    if(!recs.length){h+='<div class="emp"><span class="ei">🎉</span><div class="em">太棒了！没有错题</div></div>';}
+    else{
       recs.slice(0,10).forEach((r,i)=>{
-        h += `<div style="padding:12px;background:#fef2f2;border-radius:10px;margin-bottom:8px;border-left:4px solid var(--d)">`;
-        h += `<div style="font-size:11px;color:var(--tm);margin-bottom:4px">#${i+1} [${gt(r.type)}] ${esc(r.subject)}</div>`;
-        h += `<div style="font-size:14px;font-weight:600;margin-bottom:6px">${esc(r.question)}</div>`;
-        h += `<div style="display:flex;gap:8px;flex-wrap:wrap">`;
-        h += `<span style="background:#fecaca;padding:3px 10px;border-radius:6px;font-size:12px;color:#991b1b;font-weight:600">✗ ${esc(r.user_answer)}</span>`;
-        h += `<span style="background:#bbf7d0;padding:3px 10px;border-radius:6px;font-size:12px;color:#065f46;font-weight:600">✓ ${esc(r.answer)}</span>`;
-        h += '</div></div>';
+        h+=`<div style="padding:12px;background:#fef2f2;border-radius:10px;margin-bottom:8px;border-left:4px solid var(--d)">`;
+        h+=`<div style="font-size:11px;color:var(--tm);margin-bottom:4px">#${i+1} [${gt(r.type)}] ${esc(r.subject)}</div>`;
+        h+=`<div style="font-size:14px;font-weight:600;margin-bottom:6px">${esc(r.question)}</div>`;
+        h+=`<div style="display:flex;gap:8px;flex-wrap:wrap">`;
+        h+=`<span style="background:#fecaca;padding:3px 10px;border-radius:6px;font-size:12px;color:#991b1b;font-weight:600">✗ ${esc(r.user_answer)}</span>`;
+        h+=`<span style="background:#bbf7d0;padding:3px 10px;border-radius:6px;font-size:12px;color:#065f46;font-weight:600">✓ ${esc(r.answer)}</span>`;
+        h+='</div></div>';
       });
-      if(recs.length>10) h += '<p style="text-align:center;color:var(--tm);font-size:12px;padding-top:8px">仅显示最近10道</p>';
+      if(recs.length>10) h+='<p style="text-align:center;color:var(--tm);font-size:12px;padding-top:8px">仅显示最近10道</p>';
     }
-    body.innerHTML = h;
-    ds.style.display = 'grid';
-  }catch(e){ toast('加载详情失败'); }
+    body.innerHTML=h;ds.style.display='grid';
+  }catch(e){toast('加载失败');}
 }
-
-function closeDetail(){ document.getElementById('detailSec').style.display='none'; }
+function closeDetail(){document.getElementById('detailSec').style.display='none';}
 
 /* ===== 错题弹窗 ===== */
 async function showWrong(name){
   try{
-    const recs = await apiGet('/api/admin/user_detail?name='+encodeURIComponent(name));
-    document.getElementById('wmTitle').textContent = '❌ '+name+' 的错题记录（共'+recs.length+'道）';
-    const b = document.getElementById('wmBody');
-    if(!recs.length){ b.innerHTML='<div class="emp"><span class="ei">🎉</span><div class="em">没有错题！</div></div>'; return; }
-
+    const recs=await apiGet('/api/admin/user_detail?name='+encodeURIComponent(name));
+    document.getElementById('wmTitle').textContent='❌ '+name+' 的错题记录（共'+recs.length+'道）';
+    const b=document.getElementById('wmBody');
+    if(!recs.length){b.innerHTML='<div class="emp"><span class="ei">🎉</span><div class="em">没有错题！</div></div>';return;}
     const tm={single:'单选',multiple:'多选',judge:'判断',fill:'填空',essay:'简答'};
-    let h = '';
+    let h='';
     recs.forEach((r,i)=>{
-      h += `<div style="padding:13px;background:var(--d-l);border-radius:10px;margin-bottom:8px;border-left:4px solid var(--d)">`;
-      h += `<div style="font-size:11px;color:var(--tm);margin-bottom:4px">#${i+1} [${gt(r.type)}] ${esc(r.subject)}</div>`;
-      h += `<div style="font-size:15px;font-weight:700;margin-bottom:8px">${esc(r.question)}</div>`;
-      h += `<div style="display:flex;gap:10px;flex-wrap:wrap">`;
-      h += `<span style="background:#fecaca;padding:4px 11px;border-radius:7px;font-size:13px;color:#991b1b;font-weight:700">✗ ${esc(r.user_answer)}</span>`;
-      h += `<span style="background:#bbf7d0;padding:4px 11px;border-radius:7px;font-size:13px;color:#065f46;font-weight:700">✓ ${esc(r.answer)}</span>`;
-      h += '</div></div>';
+      h+=`<div style="padding:13px;background:var(--d-l);border-radius:10px;margin-bottom:8px;border-left:4px solid var(--d)">`;
+      h+=`<div style="font-size:11px;color:var(--tm);margin-bottom:4px">#${i+1} [${gt(r.type)}] ${esc(r.subject)}</div>`;
+      h+=`<div style="font-size:15px;font-weight:700;margin-bottom:8px">${esc(r.question)}</div>`;
+      h+=`<div style="display:flex;gap:10px;flex-wrap:wrap">`;
+      h+=`<span style="background:#fecaca;padding:4px 11px;border-radius:7px;font-size:13px;color:#991b1b;font-weight:700">✗ ${esc(r.user_answer)}</span>`;
+      h+=`<span style="background:#bbf7d0;padding:4px 11px;border-radius:7px;font-size:13px;color:#065f46;font-weight:700">✓ ${esc(r.answer)}</span>`;
+      h+='</div></div>';
     });
-    b.innerHTML = h;
-    document.getElementById('wrModal').classList.add('show');
-  }catch(e){ toast('加载错题失败'); }
+    b.innerHTML=h;document.getElementById('wrModal').classList.add('show');
+  }catch(e){toast('加载失败');}
 }
 
-/* ===== 批量删除 ===== */
+/* ===== 批量删题 ===== */
 function fillSel(subs){
-  const s = document.getElementById('dsel');
-  s.innerHTML = '<option value="">-- 选择科目查看题目 --</option>';
-  subs.forEach(x => { s.innerHTML += `<option value="${x.id}">${esc(x.name)} (${x.count}道)</option>`; });
+  const s=document.getElementById('dsel');
+  s.innerHTML='<option value="">-- 选择科目查看题目 --</option>';
+  subs.forEach(x=>{s.innerHTML+=`<option value="${x.id}">${esc(x.name)} (${x.count}道)</option>`;});
+}
+function fillImpSub(subs){
+  const s=document.getElementById('impSub');
+  s.innerHTML='<option value="">自动识别（默认按文件内容）</option>';
+  subs.filter(x=>x.name!=='默认科目').forEach(x=>{s.innerHTML+=`<option value="${x.id}">${esc(x.name)}</option>`;});
 }
 
 async function loadQs(){
-  const sid = document.getElementById('dsel').value;
-  const l = document.getElementById('dlist');
-  if(!sid){ l.style.display='none'; document.getElementById('dsc').textContent=''; return; }
+  const sid=document.getElementById('dsel').value,l=document.getElementById('dlist');
+  if(!sid){l.style.display='none';document.getElementById('dsc').textContent='';return;}
   try{
-    const subs = await apiGet('/api/subjects');
-    const sn = subs.find(s=>s.id==sid)?.name || '';
-    cQs = await apiGet('/api/questions/by_subject/'+encodeURIComponent(sn));
-    l.style.display='block';
-    document.getElementById('dsc').textContent = '共'+cQs.length+'道题目';
-
-    if(!cQs.length){
-      l.innerHTML = '<div style="padding:24px;text-align:center;color:var(--tm)">该科目暂无题目</div>';
-    }else{
+    cQs=await apiGet('/api/questions/by_subject/'+encodeURIComponent(allSubs.find(s=>s.id==sid)?.name||''));
+    l.style.display='block';document.getElementById('dsc').textContent='共'+cQs.length+'道';
+    if(!cQs.length){l.innerHTML='<div style="padding:24px;text-align:center;color:var(--tm)">该科目暂无题目</div>';}
+    else{
       const bg={single:'#dbeafe',multiple:'#fef3c7',judge:'#ede9fe',fill:'#d1fae5'};
-      l.innerHTML = cQs.map((q,i) => `<div class="di">
+      l.innerHTML=cQs.map((q,i)=>`<div class="di">
         <input type="checkbox" class="dc" value="${q.id}" onchange="updC()">
         <span style="font-size:11px;color:var(--tm);min-width:26px">#${i+1}</span>
         <span class="badge" style="background:${bg[q.type]||'#eee'}">${gt(q.type)}</span>
         <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(q.question.substring(0,50))}</span></div>`).join('');
     }
-    updC();
-    document.getElementById('dsa').checked = false;
-  }catch(e){ toast('加载题目失败'); }
+    updC();document.getElementById('dsa').checked=false;
+  }catch(e){toast('加载失败');}
 }
-
-function toggleA(){ const c=document.getElementById('dsa').checked; document.querySelectorAll('.dc').forEach(cb=>cb.checked=c); updC(); }
+function toggleA(){const c=document.getElementById('dsa').checked;document.querySelectorAll('.dc').forEach(cb=>cb.checked=c);updC();}
 function updC(){
-  const n = document.querySelectorAll('.dc:checked').length;
-  document.getElementById('dsc').textContent = '已选'+n+'题';
-  document.getElementById('bdBtn').textContent = '🗑️ 删除选中('+n+')';
+  const n=document.querySelectorAll('.dc:checked').length;
+  document.getElementById('dsc').textContent='已选'+n+'题';
+  document.getElementById('bdBtn').textContent='🗑️ 删除选中'+(n?'('+n+')':'');
 }
-
 async function batchDel(){
-  const ids = [...document.querySelectorAll('.dc:checked')].map(cb => parseInt(cb.value));
-  if(!ids.length){ toast('请先选择要删除的题目'); return; }
-  if(!confirm('确定永久删除选中的 '+ids.length+' 道题目？')) return;
-  const b = document.getElementById('bdBtn'); b.disabled=true; b.textContent='⏳ 删除中...';
+  const ids=[...document.querySelectorAll('.dc:checked')].map(cb=>parseInt(cb.value));
+  if(!ids.length){toast('请先选择题目');return;}
+  if(!confirm(`确定删除 ${ids.length} 道题目？`))return;
+  const b=document.getElementById('bdBtn');b.disabled=true;b.textContent='⏳...';
   try{
-    const d = await apiPost('/api/admin/batch_delete_questions',{ids});
-    if(d.success){ toast('✅ 已删除 '+d.count+' 道题目'); loadQs(); loadData(); }
-    else toast('删除失败：'+(d.error||''));
-  }catch(e){ toast('删除失败'); }
-  finally{ b.disabled=false; b.textContent='🗑️ 删除'; }
+    const d=await apiPost('/api/admin/batch_delete_questions',{ids});
+    if(d.success){toast('✅ 已删除'+d.count+'道');loadQs();loadData();}
+    else toast('失败：'+(d.error||''));
+  }catch(e){toast('删除失败');}
+  finally{b.disabled=false;b.textContent='🗑️ 删除';updC();}
 }
 
-/* ===== 备份导出 ===== */
+/* ===== 科目管理 ===== */
+function renderSubjects(subs){
+  const a=document.getElementById('subArea');
+  let h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px">';
+  subs.forEach((s,i)=>{
+    const isDefault=s.name==='默认科目';
+    h+=`<div class="si">
+      <input type="checkbox" class="scb" value="${s.id}" onchange="updSubSel()" ${isDefault?'disabled title="系统保留"':''}>
+      <span class="si-name">${esc(s.name)}${isDefault?' <span style="font-size:10px;color:var(--tm);font-weight:normal">(系统保留)</span>':''}</span>
+      <span class="si-count">${s.count}题</span>
+      <div class="si-actions">
+        ${!isDefault?`<button class="dbtn-danger-sm" onclick="delOneSub(${s.id},'${ea(s.name)}')">🗑</button>`:''}
+      </div>
+    </div>`;
+  });
+  h+='</div>';
+  a.innerHTML=h;
+  updSubSel();
+}
+function updSubSel(){
+  const n=document.querySelectorAll('.scb:not(:disabled):checked').length;
+  document.getElementById('bsBtn').textContent='🗑️ 批量删科目'+(n?'('+n+')':'');
+  document.getElementById('bsBtn').disabled=!n;
+}
+
+async function delOneSub(id,name){
+  if(!confirm(`确定删除科目「${name}」及其所有题目？`))return;
+  try{
+    const r=await fetch(`/api/subjects/${id}`,{method:'DELETE'});
+    if(r.ok){const d=await r.json();toast(d.success?`✅ ${d.message}`:'❌ '+d.error);loadData();}
+    else{const t=await r.text();toast('❌ '+t.slice(0,100));}
+  }catch(e){toast('删除失败：'+e.message);}
+}
+
+async function batchDelSubs(){
+  const ids=[...document.querySelectorAll('.scb:not(:disabled):checked')].map(cb=>parseInt(cb.value));
+  if(!ids.length){toast('请先选择科目');return;}
+  if(!confirm(`确定删除 ${ids.length} 个科目及其所有题目？`))return;
+  const b=document.getElementById('bsBtn');b.disabled=true;b.textContent='⏳...';
+  let ok=0,fail=0;
+  for(const id of ids){
+    try{
+      const r=await fetch(`/api/subjects/${id}`,{method:'DELETE'});
+      if(r.ok)ok++;else fail++;
+    }catch(e){fail++;}
+  }
+  toast(ok?`✅ 成功删除${ok}个科目${fail?',失败'+fail+'个':''}`:`❌ 全部失败`);
+  loadData();
+  b.disabled=false;updSubSel();
+}
+
+/* ===== 题库导入 ===== */
+let pendingFile=null;
+
+// 拖拽支持
+const upArea=document.getElementById('upArea');
+['dragenter','dragover'].forEach(ev=>{
+  upArea.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();upArea.classList.add('dragover');});
+});
+['dragleave','drop'].forEach(ev=>{
+  upArea.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();upArea.classList.remove('dragover');if(ev.type==='drop'&&e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);});
+});
+
+function handleFile(f){
+  if(!f)return;
+  const ext=f.name.split('.').pop().toLowerCase();
+  if(ext!=='docx'&&ext!=='txt'){toast('仅支持.docx和.txt格式');return;}
+  pendingFile=f;
+  document.getElementById('impBtn').disabled=false;
+  document.getElementById('impBtn').style.opacity='1';
+  document.getElementById('upArea').innerHTML=`<div style="font-size:36px;margin-bottom:6px">✅</div><div style="font-size:15px;font-weight:700">${esc(f.name)}</div><div style="font-size:12px;color:var(--tm)">${(f.size/1024).toFixed(1)}KB · 点击重新选择</div><input type="file" id="impFile" accept=".docx,.txt" style="display:none" onchange="handleFile(this.files[0])">`;
+}
+
+async function doImport(){
+  if(!pendingFile){toast('请先选择文件');return;}
+  const btn=document.getElementById('impBtn');btn.disabled=true;btn.textContent='⏳ 导入中...';
+  const resDiv=document.getElementById('impResult');
+  resDiv.innerHTML='<div style="color:var(--t2);font-size:13px">正在上传并解析，请稍候...</div>';
+
+  try{
+    const fd=new FormData();
+    fd.append('file',pendingFile);
+    const subId=document.getElementById('impSub').value;
+    if(subId){
+      const sub=allSubs.find(s=>s.id==parseInt(subId));
+      if(sub)fd.append('target_subject',sub.name);
+    }
+
+    const r=await fetch('/api/admin/import_file',{method:'POST',body:fd});
+    const d=await r.json();
+    if(d.success){
+      resDiv.innerHTML=`<div style="background:var(--s-l);padding:12px;border-radius:8px;color:#065f46;font-size:13px;font-weight:600">✅ ${d.message||'导入成功'} — 新增${d.imported_count||0}题，跳过${d.skipped_count||0}题</div>`;
+      toast('✅ 导入成功！');
+      loadData();
+    }else{
+      resDiv.innerHTML=`<div style="background:var(--d-l);padding:12px;border-radius:8px;color:#991b1b;font-size:13px">❌ ${d.error||'未知错误'}</div>`;
+      toast('❌ 导入失败');
+    }
+  }catch(e){
+    resDiv.innerHTML=`<div style="background:var(--d-l);padding:12px;border-radius:8px;color:#991b1b;font-size:13px">❌ 网络错误：${e.message}</div>`;
+    toast('❌ 导入失败');
+  }
+  finally{btn.disabled=false;btn.textContent='📥 开始导入';pendingFile=null;
+    // 重置上传区
+    upArea.innerHTML=`<div style="font-size:40px;margin-bottom:8px">📁</div><div style="font-size:15px;font-weight:700;color:var(--tx)">点击或拖拽文件到此处上传</div><div style="font-size:12px;color:var(--tm);margin-top:4px">支持 .docx / .txt 格式</div><input type="file" id="impFile" accept=".docx,.txt" style="display:none" onchange="handleFile(this.files[0])">`;
+  }
+}
+
+/* ===== 备份 ===== */
 async function backup(){
   try{
-    const data = await apiGet('/api/admin/backup');
-    const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-    const url = URL.createObjectURL(blob), a = document.createElement('a');
-    a.href = url;
-    a.download = 'quiz_backup_'+new Date().toISOString().slice(0,10)+'.json';
-    a.click();
-    URL.revokeObjectURL(url);
-    toast('✅ 备份已下载 — '+data.total_questions+'道 / '+data.total_subjects+'个科目');
-  }catch(e){ toast('备份失败'); }
+    const data=await apiGet('/api/admin/backup');
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download='quiz_backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(url);
+    toast(`✅ 已下载 — ${data.total_questions}题/${data.total_subjects}科目`);
+  }catch(e){toast('备份失败');}
 }
 </script>
 </body>

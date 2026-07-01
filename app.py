@@ -6,7 +6,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 app = Flask(__name__)
 
@@ -1046,6 +1046,25 @@ def clear_my_data():
 
 
 # ==================== Admin Dashboard APIs ====================
+# 工具函数
+TZ_CN = timezone(timedelta(hours=8))
+
+def _fmt_time(dt):
+    """时间格式化显示（UTC→北京时间）"""
+    if not dt:
+        return ''
+    try:
+        # PostgreSQL返回的datetime可能是naive的（无时区），假设为UTC
+        if dt.tzinfo is None:
+            # naive → 假设是UTC，加8小时转北京时间
+            dt = dt + timedelta(hours=8)
+        else:
+            # 有时区信息，转换为北京时间
+            dt = dt.astimezone(TZ_CN)
+        return dt.strftime('%Y-%m-%d %H:%M')
+    except Exception:
+        return str(dt)[:16]
+
 @app.route('/api/admin/users')
 @login_required
 def admin_users():
@@ -1075,8 +1094,8 @@ def admin_users():
             'total_answered': total or 0,
             'correct': correct or 0,
             'accuracy': round(correct / total * 100, 1) if total and correct else 0,
-            'first_seen': str(first_seen)[:16] if first_seen else '',
-            'last_seen': str(last_seen)[:16] if last_seen else '',
+            'first_seen': _fmt_time(first_seen),
+            'last_seen': _fmt_time(last_seen),
             'ips': ', '.join(ip_list[:5]),
             'ip_count': len(ip_list)
         })
@@ -1147,6 +1166,81 @@ def admin_backup():
         'total_subjects': len(subjects)
     }
     return jsonify(data)
+
+@app.route('/api/admin/delete_user', methods=['POST'])
+@login_required
+def admin_delete_user():
+    """删除某个用户的所有答题记录"""
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+    d = request.json or {}
+    name = (d.get('name', '') or '').strip()
+    if not name:
+        return jsonify({'error': '缺少用户名'}), 400
+    count = Record.query.filter_by(display_name=name).delete()
+    db.session.commit()
+    return jsonify({'success': True, 'count': count, 'message': f'已删除用户「{name}」的 {count} 条答题记录'})
+
+@app.route('/api/admin/batch_delete_users', methods=['POST'])
+@login_required
+def admin_batch_delete_users():
+    """批量删除多个用户的答题记录"""
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+    d = request.json or {}
+    names = d.get('names', [])
+    if not isinstance(names, list) or not names:
+        return jsonify({'error': 'names必须是数组'}), 400
+    total = 0
+    for name in names:
+        name = (name or '').strip()
+        if name:
+            c = Record.query.filter_by(display_name=name).delete()
+            total += c
+    db.session.commit()
+    return jsonify({'success': True, 'count': total, 'message': f'已删除 {len(names)} 个用户的共 {total} 条记录'})
+
+@app.route('/api/admin/import_file', methods=['POST'])
+@login_required
+def admin_import_file():
+    """管理后台：上传文件导入题目"""
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+    f = request.files.get('file')
+    target_subject = (request.form.get('target_subject') or '').strip()
+    if not f:
+        return jsonify({'error': '请选择文件'}), 400
+
+    raw = f.read()
+    fname = (f.filename or '').lower()
+
+    try:
+        if fname.endswith('.docx'):
+            result = parse_word_from_bytes(raw)
+        elif fname.endswith('.txt'):
+            result = parse_txt_from_bytes(raw)
+        else:
+            return jsonify({'error': '仅支持 .docx 和 .txt 格式'}), 400
+
+        # 如果指定了目标科目，把新导入的题目移过去
+        imported = result.get('imported_count', 0)
+        if target_subject and imported > 0:
+            ts = Subject.query.filter_by(name=target_subject).first()
+            if ts:
+                latest_ids = [q.id for q in Question.query.order_by(Question.id.desc()).limit(imported).all()]
+                for qid in latest_ids:
+                    q = Question.query.get(qid)
+                    if q: q.subject_id = ts.id; q.subject_name = ''
+                db.session.commit()
+
+        return jsonify({
+            'success': True,
+            **result,
+            'message': f"成功导入 {imported} 道题目"
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/move_question', methods=['POST'])
 @login_required

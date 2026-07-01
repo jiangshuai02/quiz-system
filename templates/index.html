@@ -42,7 +42,7 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
 .nav-item{padding:10px 20px;font-size:14px;font-weight:500;color:var(--text-secondary);cursor:pointer;border-radius:var(--radius-sm);transition:var(--transition);white-space:nowrap;border:none;background:none}
 .nav-item:hover{background:var(--bg);color:var(--text)}
 .nav-item.active{background:var(--primary);color:#fff;box-shadow:0 2px 8px rgba(59,130,246,.25)}
-.nav-item.admin-only{display:none}
+.nav-item.admin-only{}
 
 /* ========== Pages ========== */
 .page{display:none;animation:fadeIn .25s ease}
@@ -501,7 +501,7 @@ async function checkAuth() {
     const d = await r.json();
     role = d.role;
     document.getElementById('user-badge').textContent = d.username + (d.role === 'admin' ? ' 管理员' : '');
-    if (role === 'admin') document.querySelectorAll('.admin-only').forEach(e => e.style.display = '');
+    if (role === 'admin') document.querySelectorAll('.admin-only').forEach(e => { e.style.display = 'block'; e.classList.remove('admin-only'); });
   } catch(e) { console.error('Auth check failed', e); }
 }
 
@@ -672,19 +672,24 @@ function showQ() {
     let opts = q.options || [];
     if (q.type === 'judge' && (!opts || !opts.length)) opts = ['正确', '错误'];
 
-    // Shuffle options in shuffle mode
-    if (mode === 'shuffle' && opts.length > 1) {
-      opts = [...opts].sort(() => Math.random() - 0.5);
-    }
+    // Handle missing options for single/multiple
+    if ((q.type === 'single' || q.type === 'multiple') && (!opts || opts.length === 0)) {
+      optsDiv.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);background:var(--bg);border-radius:var(--radius-sm);font-size:14px">⚠️ 此题暂无选项，请在「题库」中删除后重新导入</div>';
+    } else {
+      // Shuffle options in shuffle mode
+      if (mode === 'shuffle' && opts.length > 1) {
+        opts = [...opts].sort(() => Math.random() - 0.5);
+      }
 
-    let html = '';
-    for (let i = 0; i < opts.length; i++) {
-      const L = String.fromCharCode(65 + i);
-      html += '<div class="opt-item" data-v="' + L + '" onclick="pickOpt(this)">' +
-        '<span class="opt-letter">' + L + '</span>' +
-        '<span>' + escHtml(opts[i] || '') + '</span></div>';
+      let html = '';
+      for (let i = 0; i < opts.length; i++) {
+        const L = String.fromCharCode(65 + i);
+        html += '<div class="opt-item" data-v="' + L + '" onclick="pickOpt(this)">' +
+          '<span class="opt-letter">' + L + '</span>' +
+          '<span>' + escHtml(opts[i] || '') + '</span></div>';
+      }
+      optsDiv.innerHTML = html;
     }
-    optsDiv.innerHTML = html;
   }
 
   ans = null;

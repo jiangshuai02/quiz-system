@@ -303,41 +303,7 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
 .modal-hint{font-size:12px;color:var(--text-muted);margin-top:14px}
 .modal-error{color:var(--danger);font-size:13px;margin-top:10px;display:none}
 
-/* ========== Admin Dashboard (inline) ========== */
-.admin-dash{display:none}
-.admin-dash.show{display:block}
-.admin-stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
-.admin-stat-card{background:linear-gradient(135deg,#fff,#f8fafc);border:1px solid var(--border);border-radius:var(--radius);padding:18px 16px;position:relative;overflow:hidden}
-.admin-stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
-.admin-stat-card.s-blue::before{background:linear-gradient(90deg,var(--primary),#93c5fd)}
-.admin-stat-card.s-green::before{background:linear-gradient(90deg,var(--success),#86efac)}
-.admin-stat-card.s-orange::before{background:linear-gradient(90deg,var(--warning),#fcd34d)}
-.admin-stat-card.s-purple::before{background:linear-gradient(90deg,#a78bfa,#c4b5fd)}
-.admin-stat-num{font-size:30px;font-weight:900;line-height:1.1}
-.admin-stat-card.s-blue .admin-stat-num{color:var(--primary)}
-.admin-stat-card.s-green .admin-stat-num{color:var(--success)}
-.admin-stat-card.s-orange .admin-stat-num{color:var(--warning)}
-.admin-stat-card.s-purple .admin-stat-num{color:#7c3aed}
-.admin-stat-label{font-size:12px;color:var(--text-secondary);margin-top:2px}
-.admin-section{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:16px;overflow:hidden}
-.admin-section-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #f1f5f9;font-weight:700;font-size:15px}
-.admin-section-body{padding:14px 18px}
-.adm-table{width:100%;border-collapse:collapse;font-size:13px}
-.adm-table th{padding:9px 8px;text-align:left;color:var(--text-secondary);font-weight:600;background:#f8fafc;border-bottom:2px solid var(--border);white-space:nowrap}
-.adm-table td{padding:9px 8px;border-bottom:1px solid #f1f5f9}
-.adm-table tr:hover td{background:#f8fafc}
-.adm-badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
-.adm-badge-ok{background:var(--success-light);color:#065f46}
-.adm-badge-bad{background:var(--danger-light);color:#991b1b}
-.del-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f1f5f9}
-.del-item:hover{background:#fefce8}
-.del-cb{accent-color:var(--danger)}
-
-@media(max-width:768px){
-  .admin-stat-row{grid-template-columns:repeat(2,1fr)}
-  .modal-box{padding:28px 22px}
-}
-@media(max-width:480px){.admin-stat-row{grid-template-columns:1fr}}
+@media(max-width:768px){.modal-box{padding:28px 22px}}
 </style>
 </head>
 <body>
@@ -364,7 +330,7 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
   <button class="nav-item admin-only" data-page="import">📥 导入</button>
   <button class="nav-item" data-page="wrong">❌ 错题本</button>
   <button class="nav-item" data-page="stats">📊 统计</button>
-  <button class="nav-item admin-only" onclick="showAdminLogin()">⚙️ 管理后台</button>
+  <button class="nav-item admin-only" onclick="window.location.href='/admin'">⚙️ 管理后台</button>
 </div>
 
 <!-- ======================================================================== -->
@@ -595,89 +561,6 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
   </div>
 </div>
 
-<!-- ==================== Modal: Admin Login ==================== -->
-<div class="modal-overlay" id="adminLoginModal">
-  <div class="modal-box">
-    <span class="modal-icon">🔐</span>
-    <div class="modal-title">管理后台登录</div>
-    <div class="modal-subtitle">请验证管理员身份</div>
-    <input type="text" id="admUser" class="modal-input" placeholder="管理员账号"
-      onkeydown="if(event.key==='Enter')document.getElementById('admPass').focus()">
-    <input type="password" id="admPass" class="modal-input" placeholder="管理员密码"
-      onkeydown="if(event.key==='Enter')doAdminLogin()">
-    <button class="modal-btn" onclick="doAdminLogin()" style="background:linear-gradient(135deg,#7c3aed,#a78bfa)">🔑 登录后台</button>
-    <div class="modal-error" id="admError"></div>
-  </div>
-</div>
-
-<!-- ==================== Admin Dashboard Content (inline) ==================== -->
-<div id="page-admin" class="page admin-dash">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:8px">
-    <div>
-      <div style="font-size:20px;font-weight:800">📊 管理后台</div>
-      <div style="font-size:12px;color:var(--text-secondary)">查看用户数据、管理题库内容</div>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <span style="font-size:12px;color:var(--text-muted);font-weight:600">管理员：姜帅</span>
-      <button class="btn btn-sm btn-ghost" onclick="closeAdminDash()">✕ 返回</button>
-      <button class="btn btn-sm btn-default" onclick="adminLoadAll()">🔄 刷新</button>
-    </div>
-  </div>
-
-  <!-- Stats -->
-  <div class="admin-stat-row">
-    <div class="admin-stat-card s-blue"><div class="admin-stat-num" id="aStatUsers">-</div><div class="admin-stat-label">👥 用户数</div></div>
-    <div class="admin-stat-card s-green"><div class="admin-stat-num" id="aStatTotal">-</div><div class="admin-stat-label">✅ 总答题数</div></div>
-    <div class="admin-stat-card s-orange"><div class="admin-stat-num" id="aStatQs">-</div><div class="admin-stat-label">📚 题目数</div></div>
-    <div class="admin-stat-card s-purple"><div class="admin-stat-num" id="aStatAcc">-</div><div class="admin-stat-label">📈 正确率</div></div>
-  </div>
-
-  <!-- Users Table -->
-  <div class="admin-section">
-    <div class="admin-section-head">👥 用户答题记录</div>
-    <div class="admin-section-body" id="admUserTableArea"><div style="text-align:center;padding:40px;color:var(--text-muted)">⏳ 加载中...</div></div>
-  </div>
-
-  <!-- Batch Delete -->
-  <div class="admin-section">
-    <div class="admin-section-head">🗑️ 批量删除题目</div>
-    <div class="admin-section-body">
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
-        <label style="font-size:13px;font-weight:600;color:var(--text-secondary)">科目：</label>
-        <select id="admDelSub" class="form-select" onchange="admLoadQs()"></select>
-        <span id="admDelCount" style="font-size:12px;color:var(--text-muted)"></span>
-      </div>
-      <div id="admDelList" style="max-height:250px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;display:none"></div>
-      <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
-        <label style="font-size:13px;cursor:pointer"><input type="checkbox" id="admSelAll" onchange="admToggleAll()"> 全选</label>
-        <span id="admSelCount" style="font-size:12px;color:var(--text-muted)"></span>
-        <div style="flex:1"></div>
-        <button class="btn btn-danger btn-sm" onclick="admBatchDelete()" id="btnAdmDel">🗑️ 删除选中</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Backup -->
-  <div class="admin-section">
-    <div class="admin-section-head">💾 数据备份导出</div>
-    <div class="admin-section-body" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <p style="font-size:13px;color:var(--text-secondary);flex:1">导出全部题目和科目为 JSON 文件用于备份或迁移。</p>
-      <button class="btn btn-primary btn-sm" onclick="admBackup()">📥 下载备份</button>
-    </div>
-  </div>
-
-  <!-- User Detail Modal -->
-  <div class="modal-overlay" id="admDetailModal" onclick="if(event.target===this)this.classList.remove('show')">
-    <div class="modal-box" style="max-width:620px;text-align:left;padding:24px;max-height:80vh;overflow-y:auto">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <div style="font-size:17px;font-weight:700" id="admDetailTitle">用户详情</div>
-        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('admDetailModal').classList.remove('show')">✕ 关闭</button>
-      </div>
-      <div id="admDetailBody"></div>
-    </div>
-  </div>
-</div>
-
 <script>
 // ==================== Global State ====================
 let qs = [], idx = 0, ans = null, role = 'user', sub = '__all__', mode = '';
@@ -703,18 +586,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 显示admin元素（因为自动登录为admin）
   document.querySelectorAll('.admin-only').forEach(e => { e.style.display = 'block'; e.classList.remove('admin-only'); });
 
-  // 检查是否需要输入名字
-  const savedName = localStorage.getItem('current_user_name');
-  if (!savedName) {
-    document.getElementById('nameModal').classList.add('show');
-    // 尝试恢复之前保存的名字
-    const lsName = localStorage.getItem('current_user_name');
-    if (lsName) document.getElementById('nameInput').value = lsName;
-    setTimeout(() => document.getElementById('nameInput').focus(), 300);
-  } else {
-    // 自动设置名字到后端
-    fetch('/api/set_name', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:savedName}) }).catch(()=>{});
-  }
+  // 始终显示名字输入弹窗（预填已保存的名字）
+  const savedName = localStorage.getItem('current_user_name') || '';
+  document.getElementById('nameInput').value = savedName;
+  document.getElementById('nameModal').classList.add('show');
+  setTimeout(() => document.getElementById('nameInput').focus(), 300);
 
   // 加载科目
   await loadSubs();
@@ -796,7 +672,6 @@ function switchPage(page) {
   if (page === 'bank') loadBank();
   if (page === 'stats') loadStats();
   if (page === 'wrong') loadWrong();
-  if (page === 'admin') { showAdminLogin(); return; }
   if (page === 'import') loadBank(); // 刷新科目下拉
 }
 
@@ -1023,7 +898,7 @@ async function submitAns() {
     const r = await fetch('/api/check_answer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question_id: q.id, answer: a })
+      body: JSON.stringify({ question_id: q.id, answer: a, display_name: currentUserName || '' })
     });
     const d = await r.json();
     answered++;
@@ -1436,166 +1311,6 @@ function submitName() {
       }
     })
     .catch(() => { errEl.textContent='网络错误'; errEl.style.display='block'; });
-}
-
-// ==================== Admin Login Modal ====================
-const ADM_USER = '\u59DC\u5E05'; // 姜帅
-const ADM_PASS = '17539363075';
-
-function showAdminLogin() {
-  document.getElementById('adminLoginModal').classList.add('show');
-  document.getElementById('admUser').focus();
-}
-
-function doAdminLogin() {
-  const u = document.getElementById('admUser').value.trim();
-  const p = document.getElementById('admPass').value.trim();
-  const err = document.getElementById('admError');
-  if (!u || !p) { err.textContent='请填写账号和密码'; err.style.display='block'; return; }
-  if (u !== ADM_USER || p !== ADM_PASS) { err.textContent='账号或密码错误'; err.style.display='block'; return; }
-
-  // Login success
-  document.getElementById('adminLoginModal').classList.remove('show');
-  openAdminDash();
-}
-
-function closeAdminDash() {
-  document.getElementById('page-admin').classList.remove('show');
-  // 返回刷题页
-  switchPage('practice');
-}
-
-function openAdminDash() {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-admin').classList.add('show');
-  adminLoadAll();
-}
-
-// ==================== Admin Dashboard Logic ====================
-let admQs = [];
-
-async function adminLoadAll() {
-  try {
-    const [usersRes, subsRes] = await Promise.all([
-      fetch('/api/admin/users'), fetch('/api/subjects')
-    ]);
-    const users = await usersRes.json();
-    const subs = await subsRes.json();
-    admRenderStats(users, subs);
-    admRenderTable(users);
-    admFillSubs(subs);
-  } catch(e) { console.error(e); toast('加载失败'); }
-}
-
-function admRenderStats(users, subs) {
-  let tAns=0, tOk=0, qCnt=0;
-  document.getElementById('aStatUsers').textContent = users.length;
-  users.forEach(u => { tAns += (u.total_answered||0); tOk += (u.correct||0); });
-  document.getElementById('aStatTotal').textContent = tAns;
-  subs.forEach(s => { qCnt += (s.count||0); });
-  document.getElementById('aStatQs').textContent = qCnt;
-  document.getElementById('aStatAcc').textContent = (tAns ? (tOk/tAns*100).toFixed(1)+'%' : '0%');
-}
-
-function admRenderTable(users) {
-  const area=document.getElementById('admUserTableArea');
-  if (!users.length) {
-    area.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-muted)">👤 暂无用户记录</div>';
-    return;
-  }
-  let h='<table class="adm-table"><thead><tr><th>#</th><th>用户</th><th>答题</th><th>正确</th><th>正确率</th><th>首次答题</th><th>最后活跃</th><th>IP</th><th></th></tr></thead><tbody>';
-  users.forEach((u,i)=>{
-    const a=u.accuracy||0;
-    h+='<tr><td>'+(i+1)+'</td><td style="font-weight:700">'+escHtml(u.name||'未知')+'</td>'+
-      '<td>'+(u.total_answered||0)+'</td><td>'+(u.correct||0)+'</td>'+
-      '<td><span class="adm-badge '+(a>=60?'adm-badge-ok':'adm-badge-bad')+'">'+a+'%</span></td>'+
-      '<td style="color:var(--text-muted);font-size:11px">'+(u.first_seen||'-')+'</td>'+
-      '<td style="color:var(--text-muted);font-size:11px">'+(u.last_seen||'-')+'</td>'+
-      '<td style="color:var(--text-muted);font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis" title="'+escAttr(u.ips||'')+'">'+(u.ips||'-')+'</td>'+
-      '<td><button class="btn btn-sm btn-ghost" onclick="admShowDetail(\''+escAttr(u.name)+'\')">📋 错题</button></td></tr>';
-  });
-  h+='</tbody></table>';
-  area.innerHTML=h;
-}
-
-async function admShowDetail(name) {
-  try {
-    const r=await fetch('/api/admin/user_detail?name='+encodeURIComponent(name));
-    const recs=await r.json();
-    document.getElementById('admDetailTitle').textContent='\uD83D\uDCE6 '+name+' 的错题记录';
-    const b=document.getElementById('admDetailBody');
-    if (!recs.length){
-      b.innerHTML='<div style="text-align:center;padding:30px;color:var(--text-muted)">🎉 该用户没有错题！</div>';
-    } else{
-      let h='<p style="margin-bottom:12px;font-size:13px;color:var(--text-secondary)">共 '+recs.length+' 道错题：</p>';
-      const tm={single:'单选',multiple:'多选',judge:'判断',fill:'填空',essay:'简答'};
-      recs.forEach((r,i)=>{
-        h+='<div style="padding:11px;background:#fee2e2;border-radius:8px;margin-bottom:8px;border-left:3px solid var(--danger)">';
-        h+='<div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">#'+(i+1)+' ['+(tm[r.type]||r.type)+'] '+escHtml(r.subject||'')+'</div>';
-        h+='<div style="font-size:14px;font-weight:600;margin-bottom:6px">'+escHtml(r.question)+'</div>';
-        h+='<span style="background:#fecaca;padding:3px 9px;border-radius:5px;font-size:12px;color:#991b1b">✗ '+escHtml(r.user_answer)+'</span> ';
-        h+='<span style="background:#bbf7d0;padding:3px 9px;border-radius:5px;font-size:12px;color:#065f46">✓ '+escHtml(r.answer)+'</span>';
-        h+='</div>';
-      });
-      b.innerHTML=h;
-    }
-    document.getElementById('admDetailModal').classList.add('show');
-  } catch(e){ toast('加载失败'); }
-}
-
-function admFillSubs(subs) {
-  const s=document.getElementById('admDelSub');
-  s.innerHTML='<option value="">-- 选择科目 --</option>';
-  subs.forEach(x=>{ s.innerHTML+='<option value="'+x.id+'">'+escHtml(x.name)+' ('+x.count+'道)</option>'; });
-}
-
-async function admLoadQs() {
-  const sid=document.getElementById('admDelSub').value, list=document.getElementById('admDelList');
-  if(!sid){list.style.display='none';document.getElementById('admDelCount').textContent='';return;}
-  try {
-    const sr=await fetch('/api/subjects');const subs=await sr.json();
-    const sn=subs.find(s=>s.id==sid)?.name||'';
-    const qr=await fetch('/api/questions/by_subject/'+encodeURIComponent(sn));
-    admQs=await qr.json(); list.style.display='block';
-    document.getElementById('admDelCount').textContent='共'+admQs.length+'题';
-    if(!admQs.length){list.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted)">暂无题目</div>'}
-    else{
-      const bg={single:'#dbeafe',multiple:'#fef3c7',judge:'#ede9fe',fill:'#d1fae5'};
-      list.innerHTML=admQs.map((q,i)=>'<div class="del-item"><input type="checkbox" class="del-cb" value="'+q.id+'" onchange="admUpdCount()">'+
-        '<span style="font-size:11px;color:var(--text-muted);min-width:24px">#'+(i+1)+'</span>'+
-        '<span class="adm-badge" style="background:'+(bg[q.type]||'#eee')+'">'+getType(q.type)+'</span>'+
-        '<span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(q.question.substring(0,50))+'</span></div>').join('');
-    }
-    admUpdCount();document.getElementById('admSelAll').checked=false;
-  } catch(e){ toast('加载失败'); }
-}
-
-function admToggleAll(){const c=document.getElementById('admSelAll').checked;document.querySelectorAll('.del-cb').forEach(cb=>cb.checked=c);admUpdCount();}
-function admUpdCount(){const n=document.querySelectorAll('.del-cb:checked').length;document.getElementById('admSelCount').textContent='已选'+n+'题';document.getElementById('btnAdmDel').textContent='🗑️ 删除选中('+n+')';}
-
-async function admBatchDelete(){
-  const ids=[...document.querySelectorAll('.del-cb:checked')].map(cb=>parseInt(cb.value));
-  if(!ids.length){toast('请先选择题目');return;}
-  if(!confirm('确定删除 '+ids.length+' 道题目？不可恢复！'))return;
-  const btn=document.getElementById('btnAdmDel');btn.disabled=true;btn.textContent='⏳ 删除中...';
-  try{
-    const r=await fetch('/api/admin/batch_delete_questions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});
-    const d=await r.json();
-    if(d.success){toast('✅ 已删'+d.count+'道');admLoadQs();adminLoadAll();}
-    else toast('失败：'+(d.error||''));
-  } catch(e){toast('删除失败');}
-  finally{btn.disabled=false;btn.textContent='🗑️ 删除选中';}
-}
-
-async function admBackup(){
-  try{
-    const r=await fetch('/api/admin/backup');const data=await r.json();
-    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-    const url=URL.createObjectURL(blob),a=document.createElement('a');
-    a.href=url;a.download='quiz_backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(url);
-    toast('✅ 备份已下载，共'+data.total_questions+'道');
-  }catch(e){toast('备份失败');}
 }
 </script>
 </body>

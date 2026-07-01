@@ -938,12 +938,14 @@ def check():
     elif q.type == 'fill':
         correct = str(ua).strip() == str(q.answer).strip()
     try:
+        # 优先从请求体获取display_name（前端传递），其次从session获取
+        dn = (d.get('display_name') or '').strip() or session.get('display_name', '')
         db.session.add(Record(
             user_id=current_user.id,
             question_id=qid,
             user_answer=str(ua),
             is_correct=bool(correct),
-            display_name=session.get('display_name', ''),
+            display_name=dn,
             ip_address=request.remote_addr or ''
         ))
         db.session.commit()

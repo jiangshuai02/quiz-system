@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -969,8 +969,32 @@ def get_me():
     return jsonify({
         'id': current_user.id,
         'username': current_user.username,
-        'role': current_user.role
+        'role': current_user.role,
+        'display_name': session.get('display_name', '')
     })
+
+
+@app.route('/api/set_username', methods=['POST'])
+@login_required
+def set_username():
+    """设置当前显示用户名（用于区分错题/统计）"""
+    d = request.json
+    name = (d.get('name', '') or '').strip()
+    if not name:
+        return jsonify({'error': '名称不能为空'}), 400
+    if len(name) > 30:
+        return jsonify({'error': '名称不能超过30个字符'}), 400
+    session['display_name'] = name
+    return jsonify({'success': True, 'name': name})
+
+
+@app.route('/api/clear_my_data', methods=['POST'])
+@login_required
+def clear_my_data():
+    """清除当前用户的所有答题记录"""
+    count = Record.query.filter_by(user_id=current_user.id).delete()
+    db.session.commit()
+    return jsonify({'success': True, 'count': count, 'message': f'已清除 {count} 条记录'})
 
 @app.route('/api/move_question', methods=['POST'])
 @login_required

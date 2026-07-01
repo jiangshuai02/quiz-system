@@ -227,12 +227,16 @@ def migrate_db():
         if cleaned_count > 0:
             print(f"MIGRATE: Cleaned {cleaned_count} dirty questions (removed leaked answers, fixed empty options)")
 
-    # 6. 修复单题/多选缺少选项的问题 - 自动删除
+    # 6. 修复单题/多选缺少选项的问题 - 自动删除（先清除外键关联）
     if 'questions' in table_names:
         no_opts = db.session.execute(
             sa.text("SELECT id, type, question FROM questions WHERE (type = 'single' OR type = 'multiple') AND (options IS NULL OR options = '' OR options = '|')")
         ).fetchall()
         for row in no_opts:
+            # 先删除 records 表中的关联记录（PostgreSQL外键约束）
+            db.session.execute(
+                sa.text("DELETE FROM records WHERE question_id = :qid"), {'qid': row[0]}
+            )
             db.session.execute(
                 sa.text("DELETE FROM questions WHERE id = :id"), {'id': row[0]}
             )
@@ -723,6 +727,8 @@ def del_q(qid):
         return jsonify({'error': 'Forbidden'}), 403
     q = Question.query.get(qid)
     if q:
+        # 先删除 records 表中的关联记录（PostgreSQL外键约束）
+        Record.query.filter_by(question_id=qid).delete()
         db.session.delete(q)
         db.session.commit()
         return jsonify({'success': True})
@@ -1024,6 +1030,7 @@ def delete_subject():
             return jsonify({'error': f'未找到名为"{subject_name}"的科目'}), 404
         count = len(questions)
         for q in questions:
+            Record.query.filter_by(question_id=q.id).delete()
             db.session.delete(q)
         db.session.commit()
         return jsonify({

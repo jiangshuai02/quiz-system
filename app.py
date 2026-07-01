@@ -1047,6 +1047,92 @@ def clear_my_data():
     return jsonify({'success': True, 'count': count, 'message': f'已清除 {count} 条记录'})
 
 
+# ==================== 我的历史成绩 API ====================
+@app.route('/api/my_scores')
+@login_required
+def my_scores():
+    """返回当前登录用户的历次考试成绩列表（按时间分组为考试会话）"""
+    dn = request.args.get('display_name', '') or session.get('display_name', '')
+    if not dn:
+        # 回退到当前用户ID
+        records = Record.query.filter_by(user_id=current_user.id).order_by(Record.created_at.asc()).all()
+    else:
+        records = Record.query.filter_by(display_name=dn).order_by(Record.created_at.asc()).all()
+
+    if not records:
+        return jsonify([])
+
+    # 按时间窗口分组：相邻记录间隔超过10分钟视为不同考试会话
+    sessions = []
+    cur_session = []
+    for r in records:
+        if not cur_session:
+            cur_session.append(r)
+        else:
+            last_time = cur_session[-1].created_at
+            cur_time = r.created_at
+            if last_time.tzinfo is None and cur_time.tzinfo is None:
+                gap = (cur_time - last_time).total_seconds()
+            else:
+                gap = abs((cur_time.replace(tzinfo=None) - last_time.replace(tzinfo=None)).total_seconds())
+            if gap > 600:  # 10分钟
+                if cur_session:
+                    sessions.append(cur_session)
+                cur_session = [r]
+            else:
+                cur_session.append(r)
+    if cur_session:
+        sessions.append(cur_session)
+
+    result = []
+    for sess in sessions:
+        total = len(sess)
+        correct = sum(1 for r in sess if r.is_correct)
+        accuracy = round(correct / total * 100, 1) if total else 0
+
+        q_ids = list(set(r.question_id for r in sess))
+        subjects = set()
+        for qid in q_ids:
+            q = Question.query.get(qid)
+            if q:
+                subjects.add(q.display_subject)
+
+        sub_list = sorted(subjects)
+        test_name = '、'.join(sub_list[:3]) + ('等' if len(sub_list) > 3 else '') + '测试' if sub_list else '其他测试'
+        first_time = sess[0].created_at
+        time_str = _fmt_time(first_time)
+
+        result.append({
+            'time': time_str,
+            'test_name': test_name,
+            'score': correct,
+            'accuracy': accuracy,
+            'total': total
+        })
+
+    result.reverse()
+    return jsonify(result)
+
+
+@app.route('/api/reset_my_data', methods=['POST'])
+@login_required
+def reset_my_data():
+    """清除当前用户的全部数据（需确认）"""
+    d = request.json or {}
+    confirm = d.get('confirm', False)
+    dn = d.get('display_name', '') or session.get('display_name', '')
+
+    if not confirm:
+        return jsonify({'error': '请确认操作'}), 400
+
+    if dn:
+        count = Record.query.filter_by(display_name=dn).delete()
+    else:
+        count = Record.query.filter_by(user_id=current_user.id).delete()
+    db.session.commit()
+    return jsonify({'success': True, 'deleted_count': count, 'message': f'已清除 {count} 条记录'})
+
+
 # ==================== Admin Dashboard APIs ====================
 # 工具函数
 TZ_CN = timezone(timedelta(hours=8))
@@ -1055,7 +1141,7 @@ TZ_CN = timezone(timedelta(hours=8))
 _ip_location_cache = {}
 
 def get_ip_location(ip):
-    """查询IP地址的地理位置，返回如'河南省郑州市龙湖镇'的字符串"""
+    """查询IP地址的地理位置，返回如'中国 河南省 郑州市'的字符串"""
     if not ip or ip in ('127.0.0.1', 'localhost', '::1'):
         return '本地访问'
     if ip in _ip_location_cache:
@@ -1067,7 +1153,7 @@ def get_ip_location(ip):
         with urllib.request.urlopen(req, timeout=3) as resp:
             data = json.loads(resp.read().decode())
             if data.get('status') == 'success':
-                # 拼接：国家 + 省/州 + 城市
+                # 拼接：国家 + 省/州 + 城市（用空格分隔）
                 parts = []
                 country = data.get('country', '')
                 region = data.get('regionName', '')
@@ -1075,7 +1161,7 @@ def get_ip_location(ip):
                 if country: parts.append(country)
                 if region and region != city: parts.append(region)
                 if city: parts.append(city)
-                loc = ''.join(parts)
+                loc = ' '.join(parts)
                 _ip_location_cache[ip] = loc
                 return loc
     except Exception as e:

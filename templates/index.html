@@ -179,11 +179,6 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
 .qnav-item.current.answered{background:var(--primary);color:#fff}
 .qnav-item:hover{transform:scale(1.25);z-index:5}
 
-@media(max-width:768px){
-  .qnav-wrap{position:relative;top:auto;right:auto;margin:0 auto 12px;padding:8px 6px}
-  .qnav-item{width:26px;height:26px;font-size:11px}
-}
-
 /* ========== Bank Page ========== */
 .bank-toolbar{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
 .subject-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px}
@@ -289,6 +284,12 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
 @keyframes toastAnim{from{opacity:0;transform:translate(-50%,-50%) scale(.92)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 
 /* ========== Responsive ========== */
+@media(max-width:768px){
+  .qnav-wrap{position:relative;top:auto;right:auto;margin:0 auto 12px;padding:8px 6px}
+  .qnav-item{width:26px;height:26px;font-size:11px}
+  .modal-box{padding:28px 22px;width:92%;max-width:400px}
+}
+
 @media(max-width:640px){
   .topbar{padding:10px 14px}
   .app{padding:0 10px;min-height:100vh}
@@ -302,16 +303,18 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
   .q-card{padding:18px 14px}
   .q-text{font-size:15px;line-height:1.7}
   .q-head{flex-direction:column;align-items:flex-start;gap:4px}
-  .opt-item{padding:11px 13px;font-size:14px}
+  .opt-item{padding:11px 13px;font-size:14px;width:100%}
+  .opt-list .opt-item{width:100%}
   .opt-letter{width:28px;height:28px;font-size:13px}
-  .btn-row{gap:8px}
-  .btn{padding:9px 16px;font-size:13px}
+  .btn-row{gap:8px;flex-direction:column}
+  .btn-row .btn{width:100%;justify-content:center}
+  .btn{padding:9px 16px;font-size:13px;width:100%;justify-content:center}
   .btn-lg{padding:11px 22px;font-size:15px;width:100%;justify-content:center}
-  .btn-sm{padding:7px 14px;font-size:12px}
-  #btn-prev,#btn-next{flex:0 0 auto!important}
+  .btn-sm{padding:7px 14px;font-size:12px;width:auto}
+  #btn-prev,#btn-next{flex:0 0 auto!important;width:auto}
   form input,form select,form textarea{font-size:15px}
   .form-grid{grid-template-columns:1fr}
-  .stat-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .stat-grid{grid-template-columns:repeat(2,1fr);gap:8px}
   .stat-num{font-size:1.8em}
   .mini-q{flex-direction:column;align-items:flex-start;gap:4px;padding:10px 12px}
   .mini-qt{max-width:none;white-space:normal;font-size:13px}
@@ -335,12 +338,41 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
   .memo-box{padding:12px 14px}
   .memo-ans{font-size:16px}
   .fb{padding:12px 14px;font-size:13px}
+  /* 书籍卡片网格单列 */
+  .lib-grid{grid-template-columns:1fr}
+  /* 表格横向滚动 */
+  .tbl-wrap,.tbl{overflow-x:auto;display:block;width:100%}
+  /* 弹窗宽度适配 */
+  .modal-box{width:92%;max-width:400px}
+  /* 出题配置弹窗checkbox换行 */
+  .modal-box label[style*="flex-wrap:wrap"]{flex-direction:row}
+  /* 操作按钮垂直堆叠 */
+  .btn-row:not(#btn-prev-container){flex-direction:column}
+  .btn-row .btn:not(#btn-prev):not(#btn-next){width:100%;justify-content:center}
+}
+
+@media(max-width:480px){
+  body{font-size:14px}
+  .nav-item{padding:7px 8px;font-size:12px}
+  .q-text{font-size:14px}
+  .opt-item{padding:9px 11px;font-size:13px;width:100%}
+  .mode-grid{grid-template-columns:1fr}
+  .stat-grid{grid-template-columns:1fr}
+  .qnav-grid{grid-template-columns:repeat(5,1fr)}
+  .qnav-item{width:22px;height:22px;font-size:10px}
+  .section-title{font-size:15px}
+  .stat-num{font-size:1.5em}
+  .modal-title{font-size:18px}
+  .report-score-circle{width:120px;height:120px}
+  .report-score-num{font-size:36px}
+  .lib-card{padding:14px 12px}
+  .lib-card-title{font-size:13px}
 }
 
 @media(max-width:400px){
   .nav-item{padding:7px 8px;font-size:12px}
   .q-text{font-size:14px}
-  .opt-item{padding:9px 11px;font-size:13px}
+  .opt-item{padding:9px 11px;font-size:13px;width:100%}
   .mode-grid{grid-template-columns:1fr}
   .stat-grid{grid-template-columns:1fr}
 }
@@ -358,8 +390,6 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
 .modal-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(59,130,246,.3)}
 .modal-hint{font-size:12px;color:var(--text-muted);margin-top:14px}
 .modal-error{color:var(--danger);font-size:13px;margin-top:10px;display:none}
-
-@media(max-width:768px){.modal-box{padding:28px 22px}}
 </style>
 </head>
 <body>
@@ -600,12 +630,37 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
       <div class="section-title">📊 学习统计</div>
       <div class="section-subtitle" id="stats-user-label">你的学习进度和答题概况</div>
     </div>
-    <div class="section-actions">
-      <button class="btn btn-danger btn-sm" onclick="clearMyData()">🗑️ 清除数据</button>
-    </div>
-  </div>
   </div>
   <div class="stat-grid" id="stat-grid"></div>
+
+  <!-- 历史成绩 -->
+  <div class="card" id="history-card" style="margin-top:20px">
+    <div class="card-header"><div class="card-title">📋 历史成绩</div></div>
+    <div id="history-content">
+      <div class="empty-state" id="history-empty">
+        <span class="icon">📝</span>
+        <div class="msg">暂无成绩记录</div>
+        <div class="sub">去刷题吧！</div>
+      </div>
+      <div id="history-table-wrap" style="display:none;overflow-x:auto">
+        <table class="tbl" id="history-table" style="width:100%;font-size:13px">
+          <thead>
+            <tr><th>时间</th><th>测试名称</th><th>分数</th><th>正确率</th><th>题数</th></tr>
+          </thead>
+          <tbody id="history-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 数据管理（危险操作） -->
+  <div class="card" style="margin-top:20px;border:2px solid var(--danger);background:#fef2f2">
+    <div class="card-header"><div class="card-title" style="color:var(--danger)">⚠️ 数据管理</div></div>
+    <div style="color:var(--text-secondary);font-size:14px;margin-bottom:16px;line-height:1.6">
+      清除后将删除你的全部答题记录、错题本和学习统计数据，此操作不可恢复！
+    </div>
+    <button class="btn btn-danger btn-lg" onclick="confirmResetMyData()" style="width:100%;justify-content:center">🗑️ 清除我的全部数据</button>
+  </div>
 </div>
 
 
@@ -1330,6 +1385,60 @@ async function loadStats() {
       '<div class="stat-card"><div class="stat-num">' + st.correct + '</div><div class="stat-label">✅ 正确题</div></div>' +
       '<div class="stat-card"><div class="stat-num">' + (st.accuracy || 0) + '%</div><div class="stat-label">📊 正确率</div></div>';
   } catch(e) { console.error(e); }
+  // 同时加载历史成绩
+  loadMyScores();
+}
+
+async function loadMyScores() {
+  try {
+    const name = currentUserName || localStorage.getItem('current_user_name') || '';
+    if (!name) return;
+    const r = await fetch('/api/my_scores?display_name=' + encodeURIComponent(name));
+    const scores = await r.json();
+    const emptyEl = document.getElementById('history-empty');
+    const tableWrap = document.getElementById('history-table-wrap');
+    const tbody = document.getElementById('history-tbody');
+    if (!tbody) return;
+    if (!scores || !scores.length) {
+      if (emptyEl) emptyEl.style.display = 'block';
+      if (tableWrap) tableWrap.style.display = 'none';
+      return;
+    }
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (tableWrap) tableWrap.style.display = 'block';
+    let html = '';
+    scores.forEach(s => {
+      const ac = s.accuracy || 0;
+      const bg = ac >= 60 ? 'grade-a' : ac >= 40 ? 'grade-c' : 'grade-f';
+      html += '<tr>' +
+        '<td style="font-size:12px;color:var(--text-muted)">' + escHtml(s.time) + '</td>' +
+        '<td style="font-weight:600">' + escHtml(s.test_name) + '</td>' +
+        '<td style="font-weight:700;color:var(--primary)">' + (s.score || 0) + '</td>' +
+        '<td><span class="q-badge ' + bg + '" style="font-size:11px;padding:2px 10px">' + ac + '%</span></td>' +
+        '<td>' + s.total + '</td></tr>';
+    });
+    tbody.innerHTML = html;
+  } catch(e) { console.error('Load scores failed', e); }
+}
+
+function confirmResetMyData() {
+  if (!confirm('⚠️ 确定要清除「' + (currentUserName||'当前用户') + '」的全部答题记录、错题本和学习统计数据？\n\n此操作不可恢复！')) return;
+  if (!confirm('⚠️ 再次确认：此操作将永久删除所有数据！')) return;
+  fetch('/api/reset_my_data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ display_name: currentUserName || '', confirm: true })
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) {
+      toast('✅ 已清除 ' + (d.deleted_count || 0) + ' 条记录');
+      loadStats();
+    } else {
+      toast('❌ ' + (d.error || '操作失败'));
+    }
+  })
+  .catch(() => toast('❌ 请求失败'));
 }
 
 // ==================== Upload ====================
@@ -1506,6 +1615,33 @@ function submitName() {
     .catch(() => { errEl.textContent='网络错误'; errEl.style.display='block'; });
 }
 /* ==================== Library / 查找题库 (全面教材 + 自定义出题) ==================== */
+
+// ========== 通用默认题库（当书籍没有任何题目时作为兜底） ==========
+const FALLBACK_QUESTIONS = [
+  // 通用单选题 10道
+  {q:"1+1=?",t:"single",o:["1","2","3","4"],a:"B"},
+  {q:"中国的首都是？",t:"single",o:["上海","北京","广州","深圳"],a:"B"},
+  {q:"一年有多少个月？",t:"single",o:["10","11","12","13"],a:"C"},
+  {q:"水的化学式是？",t:"single",o:["CO2","H2O","O2","NaCl"],a:"B"},
+  {q:"地球绕太阳转一圈约需？",t:"single",o:["一天","一周","一月","一年"],a:"D"},
+  {q:"TCP协议工作在OSI模型的哪一层？",t:"single",o:["物理层","网络层","传输层","应用层"],a:"C"},
+  {q:"HTML代表什么？",t:"single",o:["超文本标记语言","高级语言","样式表单","编程语言"],a:"A"},
+  {q:"二进制的1010等于十进制多少？",t:"single",o:["8","10","12","14"],a:"B"},
+  {q:"CPU的中文名称是？",t:"single",o:["中央处理器","内存","硬盘","显卡"],a:"A"},
+  {q:"HTTP默认端口是？",t:"single",o:["21","23","80","443"],a:"C"},
+  // 通用判断题 5道
+  {q:"判断：光速比声速快。",t:"judge",a:true},
+  {q:"判断：太阳从西边升起。",t:"judge",a:false},
+  {q:"判断：HTML是一种编程语言。",t:"judge",a:false},
+  {q:"判断：1KB等于1024字节。",t:"judge",a:true},
+  {q:"判断：Python是编译型语言。",t:"judge",a:false},
+  // 通用填空题 5道
+  {q:"操作系统的英文缩写是______。",t:"fill",a:"OS"},
+  {q:"数据库管理系统的英文缩写是______。",t:"fill",a:"DBMS"},
+  {q:"JSON的英文全称是______。",t:"fill",a:"JavaScript Object Notation"},
+  {q:"IP地址127.0.0.1表示______地址。",t:"fill",a:"本地回环(localhost)"},
+  {q:"URL的中文意思是______。",t:"fill",a:"统一资源定位符"}
+];
 
 const LIBRARY_DATA = [
   {
@@ -2055,12 +2191,13 @@ function renderLib() {
     cat.books.forEach(book => {
       const qCount = (book.qs || []).length;
       const dbCount = getBookQCount(book);
-      h += '<div class="lib-card" onclick="openBookConfig(\'' + book.id + '\')">';
+      const hasDirect = book.qs && book.qs.length >= 8;
+      h += '<div class="lib-card" onclick="' + (hasDirect ? 'startBookQuizDirect(\'' + book.id + '\')' : 'openBookConfig(\'' + book.id + '\')') + '">';
       h += '<div class="lib-card-title">' + escHtml(book.name) + '</div>';
       h += '<div class="lib-card-desc">' + escHtml(book.desc) + '</div>';
       if (book.author) h += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">\u{1F464} ' + escHtml(book.author) + '</div>';
       h += '<span class="lib-card-tag ' + book.tag + '" style="margin-top:6px">内置' + qCount + '题 ' + (dbCount > 0 ? '+ 库存' + dbCount + '题' : '') + '</span>';
-      h += '<div class="lib-card-action">自定义出题 →</div></div>';
+      h += '<div class="lib-card-action">' + (hasDirect ? '开始刷题 →' : '自定义出题 →') + '</div></div>';
     });
     h += '</div></div>';
   });
@@ -2103,6 +2240,71 @@ function openBookConfig(bookId) {
 // ==================== Book Quiz Logic (书籍测试) ====================
 let bookQs = [], bookIdx = 0, bookAnsMap = {}, currentBook = null;
 
+// 快速开始：有内置题 >= 8 的书籍直接开考，跳过配置弹窗
+function startBookQuizDirect(bookId) {
+  const book = findBookById(bookId);
+  if (!book) return;
+  currentBook = book;
+  // 从内置题取最多10道
+  const builtIn = book.qs || [];
+  const count = Math.min(10, builtIn.length);
+  const selected = builtIn.slice(0, count);
+  // 转换成标准格式
+  bookQs = selected.map(q => ({
+    id: -Math.random(), // 临时ID（负值避免冲突）
+    type: q.t,
+    question: q.q,
+    options: q.o || [],
+    answer: q.a !== undefined ? String(q.a) : '',
+    explanation: q.exp || ''
+  }));
+  bookIdx = 0;
+  bookAnsMap = {};
+  // 如果内置题不够10道，尽量从后台加载补充
+  if (builtIn.length < 10) {
+    // 异步补充，但不阻塞展示
+    loadBookSupplement(book, count, 10 - count);
+  } else {
+    document.getElementById('libPage').style.display = 'none';
+    document.getElementById('bookQuizArea').style.display = 'block';
+    document.getElementById('bookReportArea').style.display = 'none';
+    document.getElementById('bookQuizBadge').textContent = '📚 ' + currentBook.name;
+    buildBookQNav();
+    showBookQ();
+  }
+}
+
+async function loadBookSupplement(book, startCount, needed) {
+  // 从匹配的科目加载额外题目
+  let matchSubs = [];
+  for (let i = 0; i < allSubs.length; i++) {
+    for (let j = 0; j < (book.subMatch || []).length; j++) {
+      if (allSubs[i].name.indexOf(book.subMatch[j]) >= 0) {
+        matchSubs.push(allSubs[i].name);
+        break;
+      }
+    }
+  }
+  try {
+    let url = '/api/questions/practice/';
+    url += matchSubs.length > 0 ? encodeURIComponent(matchSubs[0]) : '__all__';
+    const r = await fetch(url);
+    const dbQs = await r.json();
+    if (dbQs.length > 0) {
+      const existingIds = new Set(bookQs.map(x => x.id));
+      const extras = dbQs.filter(x => !existingIds.has(x.id)).slice(0, needed);
+      bookQs = bookQs.concat(extras);
+    }
+  } catch(e) {}
+  // 无论如何展示
+  document.getElementById('libPage').style.display = 'none';
+  document.getElementById('bookQuizArea').style.display = 'block';
+  document.getElementById('bookReportArea').style.display = 'none';
+  document.getElementById('bookQuizBadge').textContent = '📚 ' + currentBook.name;
+  buildBookQNav();
+  showBookQ();
+}
+
 async function confirmBookQuiz(bookId) {
   if (!bookId) bookId = pendingBookId;
   currentBook = findBookById(bookId);
@@ -2134,8 +2336,16 @@ async function confirmBookQuiz(bookId) {
     bookAnsMap = {};
 
     if (!bookQs.length) {
-      alert('该书籍暂无题目，请先导入相关题库！');
-      return;
+      // 无任何题目时使用通用默认题库兜底
+      bookQs = FALLBACK_QUESTIONS.map(q => ({
+        id: -(Math.random() * 10000 + 20000),
+        type: q.t,
+        question: q.q,
+        options: q.o || [],
+        answer: q.a !== undefined ? String(q.a) : '',
+        explanation: q.exp || ''
+      }));
+      toast('该书籍暂无匹配题目，已加载通用题库（' + bookQs.length + '道）');
     }
 
     document.getElementById('libPage').style.display = 'none';

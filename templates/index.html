@@ -328,8 +328,10 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
       <input class="fill-input" id="q-fill" placeholder="请输入你的答案..." style="display:none">
 
       <div class="btn-row">
+        <button class="btn btn-ghost btn-sm" id="btn-prev" onclick="prevQ()" style="display:none" title="上一题">← 上一题</button>
+        <div style="flex:1"></div>
         <button class="btn btn-primary btn-lg" id="btn-submit" onclick="submitAns()">✓ 提交答案</button>
-        <button class="btn btn-success btn-lg" id="btn-next" onclick="nextQ()" style="display:none">→ 下一题</button>
+        <button class="btn btn-success btn-lg" id="btn-next" onclick="nextQ()" style="display:none">下一题 →</button>
         <button class="btn btn-default" id="btn-retry" onclick="retryQ()" style="display:none">↻ 重做</button>
         <button class="btn btn-ghost" id="btn-save" onclick="saveProgress()" style="display:none">💾 保存进度</button>
       </div>
@@ -645,6 +647,10 @@ function showQ() {
   document.getElementById('btn-next').style.display = 'none';
   document.getElementById('btn-retry').style.display = 'none';
 
+  // Prev/Next buttons
+  const prevBtn = document.getElementById('btn-prev');
+  prevBtn.style.display = idx > 0 ? 'inline-flex' : 'none';
+  
   // Save button only for sequential
   document.getElementById('btn-save').style.display = (mode === 'sequential') ? 'inline-flex' : 'none';
 
@@ -745,6 +751,9 @@ async function submitAns() {
     document.getElementById('btn-submit').style.display = 'none';
     document.getElementById('btn-next').style.display = 'inline-flex';
     document.getElementById('btn-retry').style.display = 'inline-flex';
+    // Show prev button when answered
+    const prevBtn = document.getElementById('btn-prev');
+    prevBtn.style.display = idx > 0 ? 'inline-flex' : 'none';
   } catch(e) {
     console.error(e);
     toast('提交失败，请重试');
@@ -773,6 +782,7 @@ function showFeedback(ok, correctAns, explanation, q) {
   fb.style.display = 'block';
 }
 
+function prevQ() { if (idx > 0) { idx--; showQ(); } }
 function nextQ() { idx++; showQ(); }
 function retryQ() { showQ(); }
 
@@ -823,14 +833,24 @@ async function loadBank() {
       return;
     }
 
+    // Read sort preference
+    const sortPref = localStorage.getItem('bank_sort') || 'asc';
+
     let html = '';
     if (role === 'admin') {
-      html += '<div style="margin-bottom:14px;padding:16px;background:#f0fdf4;border:1px dashed #86efac;border-radius:var(--radius);text-align:center">' +
-        '<button class="btn btn-success" onclick="newSubject()">+ 新建科目</button></div>';
+      html += '<div style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">' +
+        '<button class="btn btn-success" onclick="newSubject()">+ 新建科目</button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="toggleBankSort()">🔄 切换排序（当前' + (sortPref === 'asc' ? '升序↑' : '降序↓') + '）</button></div>';
+    } else if (questions.length > 0) {
+      html += '<div style="margin-bottom:14px;text-align:right">' +
+        '<button class="btn btn-ghost btn-sm" onclick="toggleBankSort()" style="font-size:12px">🔄 ' + (sortPref === 'asc' ? '升序↑' : '降序↓') + '</button></div>';
     }
 
     subjects.forEach(s => {
-      const sqs = questions.filter(x => x.subject === s.name);
+      let sqs = questions.filter(x => x.subject === s.name);
+      // Apply sort
+      if (sortPref === 'desc') sqs = sqs.reverse();
+
       html += '<div class="subject-card">';
       html += '<div class="subject-card-header" onclick="toggleSubject(this)">' +
         '<div class="left"><span class="subject-name">' + escHtml(s.name) + '</span>' +
@@ -848,7 +868,7 @@ async function loadBank() {
       } else {
         sqs.forEach((qi, i) => {
           html += '<div class="mini-q">' +
-            '<span class="mini-qt">' + (i + 1) + '. [' + getType(qi.type) + '] ' + escHtml((qi.question || '').substring(0, 50)) + (qi.question && qi.question.length > 50 ? '...' : '') + '</span>' +
+            '<span class="mini-qt">' + (sortPref === 'asc' ? i + 1 : sqs.length - i) + '. [' + getType(qi.type) + '] ' + escHtml((qi.question || '').substring(0, 50)) + (qi.question && qi.question.length > 50 ? '...' : '') + '</span>' +
             '<div class="mini-meta"><span class="mini-tag">' + getType(qi.type) + '</span>';
           if (role === 'admin') {
             html += '<select onchange="moveQ(' + qi.id + ',this.value)" style="padding:2px 6px;border:1px solid var(--border);border-radius:4px;font-size:11px;color:var(--text-muted)">' +
@@ -869,6 +889,12 @@ async function loadBank() {
     console.error(e);
     document.getElementById('bank-list').innerHTML = '<div class="empty-state"><span class="icon">⚠️</span><div class="msg">加载失败</div></div>';
   }
+}
+
+function toggleBankSort() {
+  const cur = localStorage.getItem('bank_sort') || 'asc';
+  localStorage.setItem('bank_sort', cur === 'asc' ? 'desc' : 'asc');
+  loadBank();
 }
 
 function toggleSubject(el) {

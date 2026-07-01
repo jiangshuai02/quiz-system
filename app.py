@@ -203,14 +203,14 @@ def migrate_db():
         for row in dirty_qs:
             qid, qtext, opts = row[0], row[1], row[2] or ''
             new_qtext = re.sub(r'\s*[（(]?\s*\[?[单选|多选|判断|填空|简选|选择题]*\]?\s*[）)]?\s*', '', qtext)
-            # 去掉末尾的"答案：xxx"（支持多种格式）
-            new_qtext = re.sub(r'\s*答案[：:]\s*[^\n]*$', '', new_qtext).strip()
+            # 去掉末尾的"答案：xxx"（支持任意内容，包括示例/IP地址等）
+            new_qtext = re.sub(r'\s*答案[：:]\s*.*$', '', new_qtext).strip()
             # 去掉末尾残留的括号答案标注
             new_qtext = re.sub(r'\s*[（(]\s*(正确|错误|[ABCD])\s*[）)]?\s*$', '', new_qtext).strip()
-            # 去掉题号前缀（如 "14. " 或 "1、"）
+            # 去掉题号前缀
             new_qtext = re.sub(r'^\d+[\.\、\)\s]+', '', new_qtext).strip()
             
-            # 修复只有字母的选项：标记为空，提示用户重新导入
+            # 修复只有字母的选项
             new_opts = opts
             if opts:
                 opt_parts = opts.split('|')
@@ -339,7 +339,8 @@ def clean_question_text(raw_text):
     text = re.sub(r'^\d+[\.\、\)\s]+', '', text)
 
     # 去掉末尾的"答案：xxx"/"答案:xxx"（含数字答案，如"答案：12"）
-    text = re.sub(r'\s*答案[：:]\s*[A-Za-z0-9\u4e00-\u9fa5（(）)\s,，、.\-]*$', '', text)
+    # 扩展匹配：支持"答案："后面跟任意内容（包括示例、IP地址等长文本）
+    text = re.sub(r'\s*答案[：:]\s*.*$', '', text)
 
     # 去掉末尾的"正确"/"错误"标注（判断题答案泄露）
     text = re.sub(r'\s*[（(]\s*(正确|错误|A|B)\s*[）)]\s*$', '', text)

@@ -374,26 +374,23 @@ def clean_subject_name(raw_name):
     return name
 
 
-# ==================== Word导入 ====================
-def parse_word_from_bytes(file_bytes):
-    """从内存字节流解析Word文档，兼容Render只读文件系统"""
-    import io
-    from docx import Document
-    try:
-        doc = Document(io.BytesIO(file_bytes))
-    except Exception as e:
-        raise Exception('Word\u89e3\u6790\u5931\u8d25: ' + str(e))
-
+# ==================== 文件解析（通用）====================
+def _parse_lines(lines):
+    """
+    通用行级题目解析器（Word/TXT共用）。
+    输入：文本行列表
+    输出：题目列表 [{'type','question','options','answer','subject'}]
+    """
     qs = []
     cur = {}
     opts = []
     current_subject = '\u9ed8\u8ba4\u79d1\u76ee'
 
-    for p in doc.paragraphs:
-        t = p.text.strip()
+    for line in lines:
+        t = line.strip()
         if not t:
             continue
-        # 检测章节标题作为科目名（中文数字开头、含"章"字、短标题）
+        # 检测章节标题作为科目名
         if re.match(r'^[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341]+[\u3001\.]', t) or \
            re.match(r'^\u7b2c.+[^\u9898]', t) or (len(t) < 20 and '\u7ae0' in t):
             current_subject = clean_subject_name(t)
@@ -421,10 +418,41 @@ def parse_word_from_bytes(file_bytes):
     return qs
 
 
+def parse_word_from_bytes(file_bytes):
+    """从内存字节流解析Word文档，兼容Render只读文件系统"""
+    import io
+    from docx import Document
+    try:
+        doc = Document(io.BytesIO(file_bytes))
+    except Exception as e:
+        raise Exception('Word\u89e3\u6790\u5931\u8d25: ' + str(e))
+
+    return _parse_lines([p.text.strip() for p in doc.paragraphs])
+
+
+def parse_txt_from_bytes(file_bytes):
+    """从内存字节流解析纯文本文件（.txt），自动检测编码"""
+    # 尝试多种编码解码
+    text = None
+    for enc in ('utf-8', 'gbk', 'gb2312', 'utf-16', 'latin-1'):
+        try:
+            text = file_bytes.decode(enc).replace('\r\n', '\n').replace('\r', '\n')
+            break
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+    if text is None:
+        raise Exception('\u6587\u4ef6\u7f16\u7801\u8bc6\u522b\u5931\u8d25\uff0c\u8bf7\u786e\u4fdd\u4e3aUTF-8\u6216GBK')
+
+    return _parse_lines(text.splitlines())
+
+
 def parse_word(path):
     """兼容旧接口：从文件路径解析"""
     with open(path, 'rb') as f:
-        return parse_word_from_bytes(f.read())
+        data = f.read()
+        if path.lower().endswith('.txt'):
+            return parse_txt_from_bytes(data)
+        return parse_word_from_bytes(data)
 
 # ==================== 路由 ====================
 @app.route('/')
@@ -710,9 +738,12 @@ def import_word_fn():
         if not f or not f.filename:
             return jsonify({'error': '\u672a\u9009\u62e9\u6587\u4ef6'})
 
-        # 检查文件格式
-        if not f.filename.lower().endswith('.docx'):
-            return jsonify({'error': '\u53ea\u652f\u6301.docx\u683c\u5f0f'})
+        # 检查文件格式（支持 .docx 和 .txt）
+        fname = f.filename.lower()
+        if not (fname.endswith('.docx') or fname.endswith('.txt')):
+            return jsonify({'error': '\u53ea\u652f\u6301 .docx \u6216 .txt \u683c\u5f0f'})
+
+        is_txt = fname.endswith('.txt')
 
         # 读取文件内容到内存（不写入磁盘，兼容Render只读文件系统）
         file_bytes = f.read()
@@ -741,11 +772,14 @@ def import_word_fn():
         elif target_subject_id and target_subject_id.isdigit():
             target_sub = Subject.query.get(int(target_subject_id))
 
-        # 从内存流解析Word文档
-        qs = parse_word_from_bytes(file_bytes)
+        # 根据文件类型选择解析器
+        if is_txt:
+            qs = parse_txt_from_bytes(file_bytes)
+        else:
+            qs = parse_word_from_bytes(file_bytes)
 
         if not qs:
-            return jsonify({'error': '\u672a\u8bc6\u522b\u5230\u6709\u6548\u9898\u76ee\uff0c\u8bf7\u68c0\u67e5Word\u683c\u5f0f\u662f\u5426\u6b63\u786e'})
+            return jsonify({'error': '\u672a\u8bc6\u522b\u5230\u6709\u6548\u9898\u76ee\uff0c\u8bf7\u68c0\u67e5\u6587\u4ef6\u683c\u5f0f\u662f\u5426\u6b63\u786e'})
 
         # 批量入库 - 所有题目导入到指定科目
         count = 0

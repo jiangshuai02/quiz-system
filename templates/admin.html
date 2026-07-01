@@ -17,10 +17,8 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
 
-/* ===== Dashboard ===== */
 .dp{padding:0;max-width:1400px;margin:0 auto}
 
-/* Top Nav */
 .dnav{background:rgba(255,255,255,.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
   border-bottom:1px solid var(--bd);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
 .dnav-l{display:flex;align-items:center;gap:10px}
@@ -31,10 +29,8 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang S
 .dbtn-p{background:var(--p);color:#fff;border-color:var(--p)}
 .dbtn-d{background:var(--d);color:#fff;border-color:var(--d)}
 
-/* Main content */
 .dmain{padding:24px}
 
-/* Stats row */
 .srow{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
 .sc{background:linear-gradient(145deg,#fff,#f8fafc);border:1px solid var(--bd);border-radius:var(--r);padding:22px 20px;position:relative;overflow:hidden}
 .sc::after{content:'';position:absolute;top:0;left:0;right:0;height:3.5px}
@@ -46,13 +42,11 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang S
 .sc.b1 .sn{color:var(--p)}.sc.b2 .sn{color:var(--s)}.sc.b3 .sn{color:var(--w)}.sc.b4 .sn{color:var(--v)}
 .sl{font-size:12px;color:var(--t2);margin-top:4px;display:flex;align-items:center;gap:4px}
 
-/* Section card */
 .sec{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);margin-bottom:18px;overflow:hidden}
 .sech{display:flex;align-items:center;justify-content:space-between;padding:15px 20px;border-bottom:1px solid #f1f5f9;font-size:15px;font-weight:700;flex-wrap:wrap;gap:8px}
 .sech-l{display:flex;align-items:center;gap:8px}
 .secb{padding:16px 20px}
 
-/* Table */
 .tbl{width:100%;border-collapse:collapse;font-size:13px}
 .tbl th{padding:10px 10px;text-align:left;color:var(--t2);font-weight:700;background:#f8fafc;border-bottom:2px solid var(--bd);white-space:nowrap}
 .tbl td{padding:10px 10px;border-bottom:1px solid #f1f5f9}
@@ -62,29 +56,24 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang S
 .br{background:var(--d-l);color:#991b1b}
 .by{background:#fef3c7;color:#92400e}
 
-/* Form elements */
 .sel{padding:9px 13px;border:1px solid var(--bd);border-radius:8px;font-size:13px;background:#fff;outline:none;min-width:150px}
 .sel:focus{border-color:var(--p)}
 
-/* Delete list */
 .di{display:flex;align-items:center;gap:8px;padding:8px 11px;border-bottom:1px solid #f1f5f9}
 .di:hover{background:#fffbeb}
 .dc{width:17px;height:17px;accent-color:var(--d)}
 
-/* Modal */
 .mol{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,.55);z-index:9999;align-items:center;justify-content:center}
 .mol.show{display:flex}
 .mo{background:#fff;border-radius:18px;padding:28px;max-width:680px;width:92%;max-height:85vh;overflow-y:auto;box-shadow:0 25px 65px rgba(0,0,0,.22)}
 .moh{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
 .mot{font-size:17px;font-weight:800}
 
-/* Empty state */
-.emp{text-align:center;padding:50px 20px;color:var(.tm)}
+.emp{text-align:center;padding:50px 20px;color:var(--tm)}
 .emp .ei{font-size:48px;display:block;margin-bottom:10px}
 .emp .em{font-size:15px;font-weight:600}
 .emp .es{font-size:12px;color:var(--tm);margin-top:2px}
 
-/* Toast */
 .toast{position:fixed;top:20px;right:20px;background:var(--tx);color:#fff;padding:12px 22px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;animation:si .3s ease}
 @keyframes si{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
 
@@ -92,22 +81,15 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang S
 @media(max-width:480px){.srow{grid-template-columns:1fr}}
 </style>
 </head>
-
 <body>
 
-<!-- ===== AUTH CHECK ===== -->
+<!-- AUTH CHECK -->
 <script>
-// 检查是否从首页登录弹窗验证通过
-(function(){
-  if(sessionStorage.getItem('admin_auth') !== 'ok') {
-    location.href = '/';
-  }
-})();
+if(sessionStorage.getItem('admin_auth') !== 'ok') { location.href = '/'; }
 </script>
 
-<!-- ===== DASHBOARD ===== -->
+<!-- DASHBOARD -->
 <div class="dp" id="dashPage">
-  <!-- Nav -->
   <div class="dnav">
     <div class="dnav-l">
       <span style="font-size:22px">📊</span>
@@ -122,7 +104,6 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang S
   </div>
 
   <div class="dmain">
-
     <!-- Stats -->
     <div class="srow">
       <div class="sc b1"><div class="sn" id="stU">-</div><div class="sl">👥 活跃用户数</div></div>
@@ -137,16 +118,12 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang S
       <div class="secb" id="utArea"><div class="emp"><span class="ei">⏳</span><div class="em">加载中...</div></div></div>
     </div>
 
-    <!-- Two columns: Detail & Delete side by side -->
+    <!-- Two columns -->
     <div style="display:grid;grid-template-columns:1.2fr .8fr;gap:18px">
-
-      <!-- User Detail Panel (shown after clicking a user) -->
       <div class="sec" id="detailSec" style="display:none">
-        <div class="sech" id="detailHead"><div class="sech-l"><span>📋</span> <span id="dtName">用户详情</span></div><button class="dbtn btn-ghost" onclick="closeDetail()">✕ 关闭</button></div>
+        <div class="sech" id="detailHead"><div class="sech-l"><span>📋</span> <span id="dtName">用户详情</span></div><button class="dbtn" onclick="closeDetail()">✕ 关闭</button></div>
         <div class="secb" id="dtBody"></div>
       </div>
-
-      <!-- Batch Delete -->
       <div class="sec">
         <div class="sech"><div class="sech-l"><span>🗑️</span> 批量删除题目</div></div>
         <div class="secb">
@@ -163,35 +140,52 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang S
           </div>
         </div>
       </div>
-
     </div>
 
-    <!-- Backup / Restore -->
+    <!-- Backup -->
     <div class="sec">
       <div class="sech"><div class="sech-l"><span>💾</span> 数据备份与导出</div></div>
       <div class="secb" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-        <div style="font-size:13px;color:var(--t2);flex:1">将全部科目和题目导出为 JSON 文件，用于备份、迁移或离线分析。</div>
+        <div style="font-size:13px;color:var(--t2);flex:1">将全部科目和题目导出为 JSON 文件。</div>
         <button class="dbtn dbtn-p" onclick="backup()">📥 下载完整备份</button>
       </div>
     </div>
+  </div>
 
-  </div><!-- /.dmain -->
-
-  <!-- Detail Modal (for wrong questions) -->
+  <!-- Wrong Questions Modal -->
   <div class="mol" id="wrModal" onclick="if(event.target===this)this.classList.remove('show')">
     <div class="mo">
       <div class="moh"><div class="mot" id="wmTitle">错题记录</div><button class="dbtn" onclick="document.getElementById('wrModal').classList.remove('show')">✕</button></div>
       <div id="wmBody"></div>
     </div>
   </div>
+</div>
 
-</div><!-- /.dp -->
-
+<!-- ==================== MAIN JS ==================== -->
 <script>
-const AU='\u59DC\u5E05',AP='17539363075';
-let cQs=[];
+/* ===== 工具函数 ===== */
+function esc(s){ /* HTML转义 */
+  if(!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function ea(s){ /* 属性转义 */
+  if(!s) return '';
+  return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+function gt(t){ /* 题型名称 */
+  return {single:'单选',multiple:'多选',judge:'判断',fill:'填空',essay:'简答'}[t] || t || '';
+}
+function toast(msg){ /* 提示条 */
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),2500);
+}
 
-// 页面加载时直接加载数据
+/* ===== 变量 ===== */
+let cQs = [];
+
+/* ===== 初始化 ===== */
 document.addEventListener('DOMContentLoaded', function(){ loadData(); });
 
 function doLogout(){
@@ -200,216 +194,216 @@ function doLogout(){
   location.href = '/';
 }
 
-// ==================== Data Loading ====================
-async function apiGet(url) {
+/* ===== API 封装 ===== */
+async function apiGet(url){
   const r = await fetch(url);
-  if (!r.ok) {
-    if (r.status === 401 || r.status === 302) {
-      throw new Error('登录已过期，请重新进入管理后台');
-    }
-    const text = await r.text().catch(() => '');
-    throw new Error('服务器错误 (' + r.status + '): ' + text.slice(0, 100));
+  if(!r.ok){
+    if(r.status === 401 || r.status === 302) throw new Error('登录已过期');
+    const t = await r.text().catch(()=>'');
+    throw new Error('服务器错误('+r.status+'): '+t.slice(0,80));
   }
   return r.json();
 }
 
-async function apiPost(url, body) {
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  if (!r.ok) {
-    if (r.status === 401 || r.status === 403) {
-      throw new Error('权限不足或登录已过期');
-    }
-    const text = await r.text().catch(() => '');
-    throw new Error('操作失败 (' + r.status + '): ' + text.slice(0, 100));
+async function apiPost(url,body){
+  const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok){
+    if(r.status===401||r.status===403) throw new Error('权限不足或登录已过期');
+    const t = await r.text().catch(()=>'');
+    throw new Error('操作失败('+r.status+'): '+t.slice(0,80));
   }
   return r.json();
 }
 
+/* ===== 数据加载 ===== */
 async function loadData(){
   const a = document.getElementById('utArea');
-  a.innerHTML = '<div class="emp"><span class="ei">⏳</span><div class="em">加载中...</div><div class="es">正在从服务器获取数据...</div></div>';
+  a.innerHTML = '<div class="emp"><span class="ei">⏳</span><div class="em">加载中...</div><div class="es">正在从服务器获取数据</div></div>';
   try{
-    const [users, subs] = await Promise.all([apiGet('/api/admin/users'), apiGet('/api/subjects')]);
+    const [users, subs] = await Promise.all([
+      apiGet('/api/admin/users'),
+      apiGet('/api/subjects')
+    ]);
     renderStats(users, subs);
     renderTable(users);
     fillSel(subs);
   }catch(e){
     console.error('[loadData]', e);
-    a.innerHTML = '<div class="emp"><span class="ei">❌</span><div class="em">加载数据失败</div><div class="es" style="color:var(--d)">' + esc(e.message) + '<br><br><a href="/" style="color:var(--p)">← 返回首页重新进入</a></div></div>';
-    toast('❌ ' + e.message);
+    a.innerHTML = `<div class="emp"><span class="ei">❌</span><div class="em">加载数据失败</div><div class="es" style="color:var(--d)">${esc(e.message)}<br><br><a href="/" style="color:var(--p)">← 返回首页重新进入</a></div></div>`;
+    toast('❌ '+e.message);
   }
 }
 
-function renderStats(u,s){
-  let ta=0,tok=0,qc=0;
-  document.getElementById('stU').textContent=u.length;
-  u.forEach(x=>{ta+=(x.total_answered||0);tok+=(x.correct||0);});
-  document.getElementById('stA').textContent=ta;
-  s.forEach(x=>{qc+=(x.count||0)});
-  document.getElementById('stQ').textContent=qc;
-  document.getElementById('stR').textContent=(ta?(tok/ta*100).toFixed(1):0)+'%';
+function renderStats(u, s){
+  let ta=0, tok=0, qc=0;
+  document.getElementById('stU').textContent = u.length;
+  u.forEach(x => { ta += (x.total_answered||0); tok += (x.correct||0); });
+  document.getElementById('stA').textContent = ta;
+  s.forEach(x => { qc += (x.count||0); });
+  document.getElementById('stQ').textContent = qc;
+  document.getElementById('stR').textContent = ta ? (tok/ta*100).toFixed(1)+'%' : '0%';
 }
 
 function renderTable(users){
-  const a=document.getElementById('utArea');
+  const a = document.getElementById('utArea');
   if(!users.length){
-    a.innerHTML='<div class="emp"><span class="ei">👤</span><div class="em">暂无用户答题记录</div><div class="es">当用户进入系统并答题后，会显示在这里</div></div>';
+    a.innerHTML = `<div class="emp"><span class="ei">👤</span><div class="em">暂无用户答题记录</div><div class="es">当用户答题后会显示在这里</div></div>`;
     return;
   }
-  let h='<table class="tbl"><thead><tr>'+
-    '<th>#</th><th>用户名</th><th>答题总数</th><th>答对数</th><th>正确率</th><th>首次答题</th><th>最后活跃</th><th>IP地址</th><th>操作</th>'+
-    '</tr></thead><tbody>';
-  users.forEach((u,i)=>{
-    const ac=u.accuracy||0,bg=ac>=60?'bg':'br';
-    h+='<tr>'+
-      '<td>'+(i+1)+'</td>'+
-      '<td style="font-weight:800">'+esc(u.name||'未命名')+'</td>'+
-      '<td>'+(u.total_answered||0)+'</td>'+
-      '<td>'+(u.correct||0)+'</td>'+
-      '<td><span class="badge '+bg+'">'+ac+'%</span></td>'+
-      '<td style="color:var(--tm);font-size:12px">'+(u.first_seen||'-')+'</td>'+
-      '<td style="color:var(--tm);font-size:12px">'+(u.last_seen||'-')+'</td>'+
-      '<td style="color:var(--tm);font-size:12px;max-width:110px;overflow:hidden;text-overflow:ellipsis" title="'+ea(u.ips)+'">'+(u.ips||'-')+'</td>'+
-      '<td><button class="dbtn" onclick="showDetail(\''+ea(u.name)+'\',this)">📋 查看详情</button> '+
-      '<button class="dbtn" onclick="showWrong(\''+ea(u.name)+'\')" style="margin-left:4px">❌ 错题</button></td>'+
-    '</tr>';
+  let h = `<table class="tbl"><thead><tr>
+    <th>#</th><th>用户名</th><th>答题总数</th><th>答对数</th><th>正确率</th>
+    <th>首次答题</th><th>最后活跃</th><th>IP地址</th><th>操作</th>
+    </tr></thead><tbody>`;
+  users.forEach((u, i) => {
+    const ac = u.accuracy||0, bg = ac>=60 ? 'bg' : 'br';
+    const nameE = ea(u.name||'未命名');
+    h += `<tr>
+      <td>${i+1}</td>
+      <td style="font-weight:800">${esc(u.name)||'未命名'}</td>
+      <td>${u.total_answered||0}</td>
+      <td>${u.correct||0}</td>
+      <td><span class="badge ${bg}">${ac}%</span></td>
+      <td style="color:var(--tm);font-size:12px">${u.first_seen||'-'}</td>
+      <td style="color:var(--tm);font-size:12px">${u.last_seen||'-'}</td>
+      <td style="color:var(--tm);font-size:12px;max-width:110px;overflow:hidden;text-overflow:ellipsis" title="${ea(u.ips)}">${u.ips||'-'}</td>
+      <td><button class="dbtn" onclick="showDetail('${nameE}',this)">📋 详情</button>
+      <button class="dbtn" onclick="showWrong('${nameE}')">❌ 错题</button></td>
+    </tr>`;
   });
-  h+='</tbody></table>';
-  a.innerHTML=h;
+  h += '</tbody></table>';
+  a.innerHTML = h;
 }
 
-async function showDetail(name,row){
-  // Show detail panel instead of modal for better UX
-  const ds=document.getElementById('detailSec');
-  document.getElementById('dtName').textContent='📋 '+name+' 的详细信息';
-  const body=document.getElementById('dtBody');
+/* ===== 用户详情 ===== */
+async function showDetail(name, row){
+  const ds = document.getElementById('detailSec');
+  document.getElementById('dtName').textContent = '📋 '+name+' 的详细信息';
+  const body = document.getElementById('dtBody');
+  try{
+    const recs = await apiGet('/api/admin/user_detail?name='+encodeURIComponent(name));
+    const cells = row.parentNode.cells;
 
-  // Get user stats from the row's data
-  try {
-    const r = await apiGet('/api/admin/user_detail?name=' + encodeURIComponent(name));
-    const recs=await r.json();
+    let h = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px">`;
+    h += `<div style="background:#eff6ff;padding:14px;border-radius:10px;text-align:center"><div style="font-size:11px;color:var(--t2)">答题总数</div><div style="font-size:24px;font-weight:900;color:var(--p)">${cells[2].textContent}</div></div>`;
+    h += `<div style="background:#f0fdf4;padding:14px;border-radius:10px;text-align:center"><div style="font-size:11px;color:var(--t2)">答对数量</div><div style="font-size:24px;font-weight:900;color:var(--s)">${cells[3].textContent}</div></div>`;
+    const rate = parseFloat(cells[4].textContent)||0;
+    const rateColor = rate>=60 ? 'var(--s)' : 'var(--d)';
+    h += `<div style="background:#fefce8;padding:14px;border-radius:10px;text-align:center"><div style="font-size:11px;color:var(--t2)">正确率</div><div style="font-size:24px;font-weight:900;color:${rateColor}">${cells[4].textContent}</div></div>`;
+    h += '</div>';
 
-    let h='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px">';
-    // We need to get user info - let's fetch from table context or recalculate
-    const cells=row.parentNode.cells;
-    h+='<div style="background:#eff6ff;padding:14px;border-radius:10px;text-align:center"><div style="font-size:11px;color:var(--t2)">答题总数</div><div style="font-size:24px;font-weight:900;color:var(--p)">'+cells[2].textContent+'</div></div>';
-    h+='<div style="background:#f0fdf4;padding:14px;border-radius:10px;text-align:center"><div style="font-size:11px;color:var(--t2)">答对数量</div><div style="font-size:24px;font-weight:900;color:var(--s)">'+cells[3].textContent+'</div></div>';
-    h+='<div style="background:#fefce8;padding:14px;border-radius:10px;text-align:center"><div style="font-size:11px;color:var(--t2)">正确率</div><div style="font-size:24px;font-weight:900;color:'+((parseFloat(cells[4].textContent)>=60?'var(--s)':'var(--d))+'">'+cells[4].textContent+'</div></div>';
-    h+='</div>';
-
-    h+='<h4 style="font-size:14px;font-weight:700;margin-bottom:10px;color:var(--t2)">最近错题（'+recs.length+'道）</h4>';
-
+    h += `<h4 style="font-size:14px;font-weight:700;margin-bottom:10px;color:var(--t2)">最近错题（${recs.length}道）</h4>`;
     if(!recs.length){
-      h+='<div class="emp"><span class="ei">🎉</span><div class="em">太棒了！没有错题记录</div></div>';
-    } else {
+      h += `<div class="emp"><span class="ei">🎉</span><div class="em">太棒了！没有错题记录</div></div>`;
+    }else{
       const tm={single:'单选',multiple:'多选',judge:'判断',fill:'填空',essay:'简答'};
       recs.slice(0,10).forEach((r,i)=>{
-        h+='<div style="padding:12px;background:#fef2f2;border-radius:10px;margin-bottom:8px;border-left:4px solid var(--d)">';
-        h+='<div style="font-size:11px;color:var(--tm);margin-bottom:4px">#'+(i+1)+' ['+(tm[r.type]||r.type)+'] '+(esc(r.subject)||'')+'</div>';
-        h+='<div style="font-size:14px;font-weight:600;margin-bottom:6px">'+esc(r.question)+'</div>';
-        h+='<div style="display:flex;gap:8px;flex-wrap:wrap">';
-        h+='<span style="background:#fecaca;padding:3px 10px;border-radius:6px;font-size:12px;color:#991b1b;font-weight:600">✗ 你的答案：'+esc(r.user_answer)+'</span>';
-        h+='<span style="background:#bbf7d0;padding:3px 10px;border-radius:6px;font-size:12px;color:#065f46;font-weight:600">✓ 正确答案：'+esc(r.answer)+'</span>';
-        h+='</div></div>';
+        h += `<div style="padding:12px;background:#fef2f2;border-radius:10px;margin-bottom:8px;border-left:4px solid var(--d)">`;
+        h += `<div style="font-size:11px;color:var(--tm);margin-bottom:4px">#${i+1} [${gt(r.type)}] ${esc(r.subject)}</div>`;
+        h += `<div style="font-size:14px;font-weight:600;margin-bottom:6px">${esc(r.question)}</div>`;
+        h += `<div style="display:flex;gap:8px;flex-wrap:wrap">`;
+        h += `<span style="background:#fecaca;padding:3px 10px;border-radius:6px;font-size:12px;color:#991b1b;font-weight:600">✗ ${esc(r.user_answer)}</span>`;
+        h += `<span style="background:#bbf7d0;padding:3px 10px;border-radius:6px;font-size:12px;color:#065f46;font-weight:600">✓ ${esc(r.answer)}</span>`;
+        h += '</div></div>';
       });
-      if(recs.length>10) h+='<p style="text-align:center;color:var(--tm);font-size:12px;padding-top:8px">仅显示最近10道错题</p>';
+      if(recs.length>10) h += '<p style="text-align:center;color:var(--tm);font-size:12px;padding-top:8px">仅显示最近10道</p>';
     }
-
-    body.innerHTML=h;
-    ds.style.display='grid';
-  } catch(e){ toast('加载失败'); }
+    body.innerHTML = h;
+    ds.style.display = 'grid';
+  }catch(e){ toast('加载详情失败'); }
 }
 
-function closeDetail(){document.getElementById('detailSec').style.display='none';}
+function closeDetail(){ document.getElementById('detailSec').style.display='none'; }
 
+/* ===== 错题弹窗 ===== */
 async function showWrong(name){
   try{
-    const r = await apiGet('/api/admin/user_detail?name=' + encodeURIComponent(name));
-    const recs=await r.json();
-    document.getElementById('wmTitle').textContent='❌ '+name+' 的错题记录（共'+recs.length+'道）';
-    const b=document.getElementById('wmBody');
-    if(!recs.length){b.innerHTML='<div class="emp"><span class="ei">🎉</span><div class="em">没有错题！</div></div>';return;}
+    const recs = await apiGet('/api/admin/user_detail?name='+encodeURIComponent(name));
+    document.getElementById('wmTitle').textContent = '❌ '+name+' 的错题记录（共'+recs.length+'道）';
+    const b = document.getElementById('wmBody');
+    if(!recs.length){ b.innerHTML='<div class="emp"><span class="ei">🎉</span><div class="em">没有错题！</div></div>'; return; }
 
     const tm={single:'单选',multiple:'多选',judge:'判断',fill:'填空',essay:'简答'};
-    let h='';
+    let h = '';
     recs.forEach((r,i)=>{
-      h+='<div style="padding:13px;background:var(--d-l);border-radius:10px;margin-bottom:8px;border-left:4px solid var(--d)">';
-      h+='<div style="font-size:11px;color:var(--tm);margin-bottom:4px">#'+(i+1)+' ['+(tm[r.type]||r.type)+'] '+(esc(r.subject)||'')+'</div>';
-      h+='<div style="font-size:15px;font-weight:700;margin-bottom:8px">'+esc(r.question)+'</div>';
-      h+='<div style="display:flex;gap:10px;flex-wrap:wrap">';
-      h+='<span style="background:#fecaca;padding:4px 11px;border-radius:7px;font-size:13px;color:#991b1b;font-weight:700">✗ '+esc(r.user_answer)+'</span>';
-      h+='<span style="background:#bbf7d0;padding:4px 11px;border-radius:7px;font-size:13px;color:#065f46;font-weight:700">✓ '+esc(r.answer)+'</span>';
-      h+='</div></div>';
+      h += `<div style="padding:13px;background:var(--d-l);border-radius:10px;margin-bottom:8px;border-left:4px solid var(--d)">`;
+      h += `<div style="font-size:11px;color:var(--tm);margin-bottom:4px">#${i+1} [${gt(r.type)}] ${esc(r.subject)}</div>`;
+      h += `<div style="font-size:15px;font-weight:700;margin-bottom:8px">${esc(r.question)}</div>`;
+      h += `<div style="display:flex;gap:10px;flex-wrap:wrap">`;
+      h += `<span style="background:#fecaca;padding:4px 11px;border-radius:7px;font-size:13px;color:#991b1b;font-weight:700">✗ ${esc(r.user_answer)}</span>`;
+      h += `<span style="background:#bbf7d0;padding:4px 11px;border-radius:7px;font-size:13px;color:#065f46;font-weight:700">✓ ${esc(r.answer)}</span>`;
+      h += '</div></div>';
     });
-    b.innerHTML=h;
+    b.innerHTML = h;
     document.getElementById('wrModal').classList.add('show');
-  }catch(e){toast('加载失败');}
+  }catch(e){ toast('加载错题失败'); }
 }
 
-// ==================== Delete ====================
+/* ===== 批量删除 ===== */
 function fillSel(subs){
-  const s=document.getElementById('dsel');
-  s.innerHTML='<option value="">-- 选择科目查看题目 --</option>';
-  subs.forEach(x=>s.innerHTML+='<option value="'+x.id+'">'+esc(x.name)+' ('+x.count+'道)</option>');
+  const s = document.getElementById('dsel');
+  s.innerHTML = '<option value="">-- 选择科目查看题目 --</option>';
+  subs.forEach(x => { s.innerHTML += `<option value="${x.id}">${esc(x.name)} (${x.count}道)</option>`; });
 }
 
 async function loadQs(){
-  const sid=document.getElementById('dsel').value,l=document.getElementById('dlist');
-  if(!sid){l.style.display='none';document.getElementById('dsc').textContent='';return;}
+  const sid = document.getElementById('dsel').value;
+  const l = document.getElementById('dlist');
+  if(!sid){ l.style.display='none'; document.getElementById('dsc').textContent=''; return; }
   try{
-    const sr = await apiGet('/api/subjects');
-    const sn = sr.find(s => s.id == sid)?.name || '';
-    cQs = await apiGet('/api/questions/by_subject/' + encodeURIComponent(sn));
-    cQs = await apiGet('/api/questions/by_subject/' + encodeURIComponent(sn));
-    l.style.display = 'block';
-    document.getElementById('dsc').textContent='共'+cQs.length+'道题目';
+    const subs = await apiGet('/api/subjects');
+    const sn = subs.find(s=>s.id==sid)?.name || '';
+    cQs = await apiGet('/api/questions/by_subject/'+encodeURIComponent(sn));
+    l.style.display='block';
+    document.getElementById('dsc').textContent = '共'+cQs.length+'道题目';
 
-    if(!cQs.length){l.innerHTML='<div style="padding:24px;text-align:center;color:var(--tm)">该科目暂无题目</div>'}
-    else{
+    if(!cQs.length){
+      l.innerHTML = '<div style="padding:24px;text-align:center;color:var(--tm)">该科目暂无题目</div>';
+    }else{
       const bg={single:'#dbeafe',multiple:'#fef3c7',judge:'#ede9fe',fill:'#d1fae5'};
-      l.innerHTML=cQs.map((q,i)=>'<div class="di">'+
-        '<input type="checkbox" class="dc" value="'+q.id+'" onchange="updC()">'+
-        '<span style="font-size:11px;color:var(--tm);min-width:26px">#'+(i+1)+'</span>'+
-        '<span class="badge" style="background:'+(bg[q.type]||'#eee')+'">'+gt(q.type)+'</span>'+
-        '<span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(q.question.substring(0,50))+'</span></div>').join('');
+      l.innerHTML = cQs.map((q,i) => `<div class="di">
+        <input type="checkbox" class="dc" value="${q.id}" onchange="updC()">
+        <span style="font-size:11px;color:var(--tm);min-width:26px">#${i+1}</span>
+        <span class="badge" style="background:${bg[q.type]||'#eee'}">${gt(q.type)}</span>
+        <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(q.question.substring(0,50))}</span></div>`).join('');
     }
-    updC();document.getElementById('dsa').checked=false;
-  }catch(e){toast('加载失败');}
+    updC();
+    document.getElementById('dsa').checked = false;
+  }catch(e){ toast('加载题目失败'); }
 }
 
-function toggleA(){const c=document.getElementById('dsa').checked;document.querySelectorAll('.dc').forEach(cb=>cb.checked=c);updC();}
+function toggleA(){ const c=document.getElementById('dsa').checked; document.querySelectorAll('.dc').forEach(cb=>cb.checked=c); updC(); }
 function updC(){
-  const n=document.querySelectorAll('.dc:checked').length;
-  document.getElementById('dsc').textContent='已选'+n+'题';
-  document.getElementById('bdBtn').textContent='🗑️ 删除选中('+n+')';
+  const n = document.querySelectorAll('.dc:checked').length;
+  document.getElementById('dsc').textContent = '已选'+n+'题';
+  document.getElementById('bdBtn').textContent = '🗑️ 删除选中('+n+')';
 }
 
 async function batchDel(){
-  const ids=[...document.querySelectorAll('.dc:checked')].map(cb=>parseInt(cb.value));
-  if(!ids.length){toast('请先选择要删除的题目');return;}
-  if(!confirm('确定永久删除选中的 '+ids.length+' 道题目？此操作不可恢复！'))return;
-  const b=document.getElementById('bdBtn');b.disabled=true;b.textContent='⏳ 删除中...';
+  const ids = [...document.querySelectorAll('.dc:checked')].map(cb => parseInt(cb.value));
+  if(!ids.length){ toast('请先选择要删除的题目'); return; }
+  if(!confirm('确定永久删除选中的 '+ids.length+' 道题目？')) return;
+  const b = document.getElementById('bdBtn'); b.disabled=true; b.textContent='⏳ 删除中...';
   try{
-    const d = await apiPost('/api/admin/batch_delete_questions', { ids });
-    if(d.success){toast('✅ 已删除 '+d.count+' 道题目');loadQs();loadData();}
+    const d = await apiPost('/api/admin/batch_delete_questions',{ids});
+    if(d.success){ toast('✅ 已删除 '+d.count+' 道题目'); loadQs(); loadData(); }
     else toast('删除失败：'+(d.error||''));
-  }catch(e){toast('删除失败');}
-  finally{b.disabled=false;b.textContent='🗑️ 删除';}
+  }catch(e){ toast('删除失败'); }
+  finally{ b.disabled=false; b.textContent='🗑️ 删除'; }
 }
 
-// ==================== Backup ====================
+/* ===== 备份导出 ===== */
 async function backup(){
   try{
     const data = await apiGet('/api/admin/backup');
-    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-    const url=URL.createObjectURL(blob),a=document.createElement('a');
-    a.href=url;a.download='quiz_backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(url);
-    toast('✅ 备份已下载 — '+data.total_questions+'道题目 / '+data.total_subjects+'个科目');
-  }catch(e){toast('备份失败');}}
+    const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url;
+    a.download = 'quiz_backup_'+new Date().toISOString().slice(0,10)+'.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('✅ 备份已下载 — '+data.total_questions+'道 / '+data.total_subjects+'个科目');
+  }catch(e){ toast('备份失败'); }
+}
 </script>
 </body>
 </html>

@@ -493,9 +493,6 @@ def index():
         admin = User.query.filter_by(username='admin').first()
         if admin:
             login_user(admin)
-    # 检查是否设置了用户名，没有则返回命名页面
-    if not session.get('display_name'):
-        return render_template('name_input.html')
     return render_template('index.html')
 
 

@@ -135,7 +135,18 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang S
       <div class="secb" id="utArea"><div class="emp"><span class="ei">⏳</span><div class="em">加载中...</div></div></div>
     </div>
 
-    <!-- Two columns -->
+    <!-- ===== 2. 科目管理 ===== -->
+    <div class="sec">
+      <div class="sech">
+        <div class="sech-l"><span>📚</span> 科目管理</div>
+        <div class="sech-r">
+          <button class="dbtn dbtn-d dbtn-sm" onclick="batchDelSubs()" id="bsBtn">🗑️ 批量删科目</button>
+        </div>
+      </div>
+      <div class="secb" id="subArea"><div class="emp"><span class="ei">⏳</span><div class="em">加载中...</div></div></div>
+    </div>
+
+    <!-- ===== 3. 批量删除题目 ===== -->
     <div style="display:grid;grid-template-columns:1.2fr .8fr;gap:18px">
 
       <!-- User Detail Panel -->
@@ -162,18 +173,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang S
 
     </div>
 
-    <!-- ===== 2. 科目管理 ===== -->
-    <div class="sec">
-      <div class="sech">
-        <div class="sech-l"><span>📚</span> 科目管理</div>
-        <div class="sech-r">
-          <button class="dbtn dbtn-d dbtn-sm" onclick="batchDelSubs()" id="bsBtn">🗑️ 批量删科目</button>
-        </div>
-      </div>
-      <div class="secb" id="subArea"><div class="emp"><span class="ei">⏳</span><div class="em">加载中...</div></div></div>
-    </div>
-
-    <!-- ===== 3. 导入题库 ===== -->
+    <!-- ===== 4. 导入题库 ===== -->
     <div class="sec">
       <div class="sech"><div class="sech-l"><span>📄</span> 题库导入</div></div>
       <div class="secb">
@@ -192,7 +192,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang S
       </div>
     </div>
 
-    <!-- ===== 4. 备份导出 ===== -->
+    <!-- ===== 5. 备份导出 ===== -->
     <div class="sec">
       <div class="sech"><div class="sech-l"><span>💾</span> 数据备份与导出</div></div>
       <div class="secb" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">

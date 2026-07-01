@@ -1206,41 +1206,259 @@ def admin_import_file():
     """管理后台：上传文件导入题目"""
     if current_user.role != 'admin':
         return jsonify({'error': 'Forbidden'}), 403
-    f = request.files.get('file')
-    target_subject = (request.form.get('target_subject') or '').strip()
-    if not f:
-        return jsonify({'error': '请选择文件'}), 400
-
-    raw = f.read()
-    fname = (f.filename or '').lower()
 
     try:
+        f = request.files.get('file')
+        if not f or not f.filename:
+            return jsonify({'error': '请选择文件'}), 400
+
+        raw = f.read()
+        fname = (f.filename or '').lower()
+
+        if len(raw) == 0:
+            return jsonify({'error': '文件为空'}), 400
+        if len(raw) > 10 * 1024 * 1024:
+            return jsonify({'error': '文件过大，请控制在10MB以内'}), 400
+
+        # 解析文件得到题目列表
         if fname.endswith('.docx'):
-            result = parse_word_from_bytes(raw)
+            qs = parse_word_from_bytes(raw)
         elif fname.endswith('.txt'):
-            result = parse_txt_from_bytes(raw)
+            qs = parse_txt_from_bytes(raw)
         else:
             return jsonify({'error': '仅支持 .docx 和 .txt 格式'}), 400
 
-        # 如果指定了目标科目，把新导入的题目移过去
-        imported = result.get('imported_count', 0)
-        if target_subject and imported > 0:
-            ts = Subject.query.filter_by(name=target_subject).first()
-            if ts:
-                latest_ids = [q.id for q in Question.query.order_by(Question.id.desc()).limit(imported).all()]
-                for qid in latest_ids:
-                    q = Question.query.get(qid)
-                    if q: q.subject_id = ts.id; q.subject_name = ''
-                db.session.commit()
+        if not qs:
+            return jsonify({'error': '未识别到有效题目，请检查文件格式'}), 400
 
+        # 目标科目
+        target_subject_name = (request.form.get('target_subject') or '').strip()
+        target_sub = None
+        if target_subject_name:
+            target_sub = Subject.query.filter_by(name=target_subject_name).first()
+
+        # 入库
+        imported_count = 0
+        skipped_count = 0
+        for item in qs:
+            q_text = (item.get('question', '') or item.get('q', '')).strip()
+            if not q_text: skipped_count += 1; continue
+
+            sname = target_sub.name if target_sub else (item.get('subject', '默认科目'))
+            sid = target_sub.id if target_sub else None
+
+            q = Question(
+                type=item.get('type', 'essay'),
+                question=q_text,
+                options='|'.join(item.get('options', [])),
+                answer=str(item.get('answer', '')),
+                explanation=item.get('explanation', ''),
+                subject_id=sid,
+                subject_name=sname if not sid else ''
+            )
+            db.session.add(q)
+            imported_count += 1
+
+        db.session.commit()
         return jsonify({
             'success': True,
-            **result,
-            'message': f"成功导入 {imported} 道题目"
+            'imported_count': imported_count,
+            'skipped_count': skipped_count,
+            'message': f'成功导入 {imported_count} 道题目'
         })
+
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        print('ADMIN IMPORT ERROR:', str(e))
+        return jsonify({'error': '导入失败: ' + str(e)[:200]}), 500
+
+
+# ===== 题目搜索API =====
+@app.route('/api/search_questions')
+@login_required
+def search_questions():
+    """全局搜索题目（关键词/科目/题型）"""
+    kw = (request.args.get('q', '') or '').strip().lower()
+    sub = (request.args.get('subject', '') or '').strip()
+    qt = (request.args.get('type', '') or '').strip()
+    page = max(1, int(request.args.get('page', '1')))
+    per_page = 20
+
+    query = Question.query
+    if kw:
+        query = query.filter(Question.question.ilike(f'%{kw}%') | Question.answer.ilike(f'%{kw}%'))
+    if sub:
+        query = query.filter((Question.subject_name == sub) | (Subject.name == sub).any())
+    if qt:
+        query = query.filter(Question.type == qt)
+
+    total = query.count()
+    items = query.order_by(Question.id.desc()).offset((page-1)*per_page).limit(per_page).all()
+
+    return jsonify({
+        'total': total, 'page': page, 'pages': (total + per_page - 1) // per_page,
+        'items': [{
+            'id': q.id, 'type': q.type, 'question': q.question[:80],
+            'answer': q.answer, 'subject': q.subject_name or '',
+            'subject_id': q.subject_id
+        } for q in items]
+    })
+
+
+# ===== 大学学科分类数据 =====
+UNIVERSITY_CATEGORIES = {
+    "理工科": [
+        {"id": "math", "name": "高等数学", "desc": "微积分、线性代数、概率论"},
+        {"id": "physics", "name": "大学物理", "desc": "力学、热学、电磁学、光学、原子物理"},
+        {"id": "chem", "name": "普通化学", "desc": "无机化学、有机化学基础"},
+        {"id": "cs", "name": "计算机科学", "desc": "数据结构、算法、操作系统、网络"},
+        {"id": "elec", "name": "电路与电子技术", "desc": "电路分析、模拟/数字电子技术"},
+    ],
+    "文史哲法": [
+        {"id": "politics", "name": "政治理论", "desc": "马克思主义基本原理、毛概、中特"},
+        {"id": "history", "name": "中国近代史纲要", "desc": "1840年以来的中国近现代史"},
+        {"id": "law", "name": "法律基础", "desc": "宪法、民法、刑法基础"},
+        {"id": "philosophy", "name": "哲学导论", "desc": "马克思主义哲学基本原理"},
+    ],
+    "经管类": [
+        {"id": "economics", " name": "经济学原理", "desc": "微观/宏观经济学基础"},
+        {"id": "management", "name": "管理学", "desc": "管理职能、组织行为、战略管理"},
+        {"id": "accounting", "name": "会计学", "desc": "财务会计、成本会计基础"},
+    ],
+    "医学": [
+        {"id": "anatomy", "name": "系统解剖学", "desc": "人体各系统解剖结构"},
+        {"id": "physiology", "name": "生理学", "desc": "人体正常功能机制"},
+        {"id": "pathology", "name": "病理学", "desc": "疾病发生发展规律"},
+    ],
+    "语言文学": [
+        {"id": "english_cet4", "name": "大学英语四级(CET-4)", "desc": "听力、阅读、写作、翻译综合测试"},
+        {"id": "english_cet6", "name": "大学英语六级(CET-6)", "desc": "更高难度英语能力测试"},
+        {"id": "chinese_modern", "name": "现代汉语", "desc": "语音、文字、词汇、语法、修辞"},
+    ],
+}
+
+@app.route('/api/university_categories')
+def get_university_categories():
+    """获取大学学科分类列表"""
+    return jsonify(UNIVERSITY_CATEGORIES)
+
+
+@app.route('/api/exam/start', methods=['POST'])
+@login_required
+def start_exam():
+    """开始一场大学学科考试"""
+    d = request.json or {}
+    cat_id = (d.get('category_id', '') or '').strip()
+    count = min(50, max(5, int(d.get('count', 10))))
+
+    # 查找对应科目的题目（优先从题库匹配）
+    cat_info = None
+    for cat_list in UNIVERSITY_CATEGORIES.values():
+        for c in cat_list:
+            if c['id'] == cat_id:
+                cat_info = c
+                break
+        if not cat_info:
+            return jsonify({'error': '未知学科'}), 400
+
+    # 尝试按名称匹配题库中的科目，否则随机抽取
+    questions = []
+    sub = Subject.query.filter(Subject.name.ilike(f'%{cat_info["name"]}%')).first()
+    if sub:
+        qs = Question.query.filter_by(subject_id=sub.id).order_by(db.func.random()).limit(count).all()
+        questions = [format_question_for_exam(q) for q in qs]
+
+    # 如果题库不够，补充其他题目
+    if len(questions) < count:
+        extra = count - len(questions)
+        used_ids = {q['id'] for q in questions}
+        extras = Question.query.filter(~Question.id.in_(used_ids)).order_by(db.func.random()).limit(extra).all()
+        questions.extend([format_question_for_exam(q) for q in extras])
+
+    exam_data = {'category': cat_info, 'questions': questions, 'total': len(questions)}
+    session['current_exam'] = exam_data
+    session['exam_answers'] = {}
+    session['exam_index'] = 0
+    session['exam_start'] = datetime.utcnow().isoformat()
+
+    return jsonify({'success': True, **exam_data})
+
+
+def format_question_for_exam(q):
+    """将题目格式化为考试模式"""
+    opts_raw = (q.options or '').split('|') if q.options else []
+    opts = [{'label': chr(65+i), 'text': o.strip()} for i, o in enumerate(opts_raw) if o.strip()] if q.type in ('single','multiple') else []
+    return {
+        'id': q.id, 'type': q.type,
+        'question': q.question,
+        'options': opts,
+        'answer': q.answer,
+        'subject': q.subject_name or ''
+    }
+
+
+@app.route('/api/exam/submit_answer', methods=['POST'])
+@login_required
+def submit_exam_answer():
+    """提交单道考试答案（暂存）"""
+    d = request.json or {}
+    qid = d.get('question_id')
+    ans = d.get('answer')
+    idx = d.get('index', 0)
+
+    answers = session.get('exam_answers', {})
+    if qid is not None:
+        answers[str(qid)] = ans
+    session['exam_answers'] = answers
+    session['exam_index'] = idx + 1
+
+    return jsonify({'success': True, 'next_index': session['exam_index']})
+
+
+@app.route('/api/exam/finish', methods=['POST'])
+@login_required
+def finish_exam():
+    """结束考试并计算成绩"""
+    answers = session.get('exam_answers', {})
+    exam = session.get('current_exam', {})
+
+    correct = 0
+    wrong = 0
+    details = []
+
+    for q in exam.get('questions', []):
+        qid_str = str(q['id'])
+        user_ans = answers.get(qid_str, '')
+        is_correct = str(user_ans).strip().lower() == str(q['answer']).strip().lower()
+        if is_correct: correct += 1
+        else: wrong += 1
+        details.append({
+            'question': q['question'][:60],
+            'your_answer': user_ans,
+            'correct_answer': q['answer'],
+            'is_correct': is_correct,
+            'type': q['type'],
+            'subject': q['subject']
+        })
+
+    total = exam.get('total', len(details))
+    score = round(correct / total * 100, 1) if total > 0 else 0
+    grade = score >= 90 ? 'A(优秀)' : score >= 80 ? 'B(良好)' : score >= 70 ? 'C(中等)' : score >= 60 ? 'D(及格)' : 'F(不及格)'
+
+    result = {
+        'score': score, 'grade': grade,
+        'correct': correct, 'wrong': wrong, 'total': total,
+        'category': exam.get('category', {}),
+        'details': details,
+        'time_spent': ''
+    }
+
+    # 清除考试状态
+    session.pop('current_exam', None)
+    session.pop('exam_answers', None)
+    session.pop('exam_index', None)
+
+    return jsonify(result)
 
 @app.route('/api/move_question', methods=['POST'])
 @login_required

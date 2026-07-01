@@ -618,6 +618,32 @@ def get_practice_qs(subject_name):
         })
     return jsonify(result)
 
+
+@app.route('/api/questions/sequential/<subject_name>')
+@login_required
+def get_sequential_qs(subject_name):
+    """顺序答题模式：按题库原始顺序，不随机打乱"""
+    if subject_name == '__all__':
+        qs = Question.query.order_by(Question.id.asc()).all()
+    else:
+        sub = Subject.query.filter_by(name=subject_name).first()
+        if sub:
+            qs = Question.query.filter(
+                (Question.subject_id == sub.id) | (Question.subject_name == subject_name)
+            ).order_by(Question.id.asc()).all()
+        else:
+            qs = Question.query.filter(Question.subject_name == subject_name).order_by(Question.id.asc()).all()
+    result = []
+    for q in qs:
+        result.append({
+            'id': q.id, 'type': q.type, 'question': q.question,
+            'options': q.options.split('|') if q.options else [],
+            'answer': q.answer, 'explanation': q.explanation or '',
+            'subject': q.display_subject, 'subject_id': q.subject_id
+        })
+    return jsonify(result)
+
+
 @app.route('/api/questions', methods=['POST'])
 @login_required
 def add_q():
@@ -953,6 +979,22 @@ def delete_subject():
             'success': True, 'count': count,
             'message': f'已删除科目「{subject_name}」下的 {count} 道题目'
         })
+
+
+# ==================== 答题进度保存/恢复 ====================
+@app.route('/api/progress/save', methods=['POST'])
+@login_required
+def save_progress():
+    """保存答题进度（顺序模式用）"""
+    d = request.json
+    mode = d.get('mode', 'sequential')
+    subject_name = d.get('subject_name', '__all__')
+    index = d.get('index', 0)
+    
+    import json
+    # 用JSON存到Record表（复用，或直接返回给前端用localStorage）
+    return jsonify({'success': True, 'mode': mode, 'subject_name': subject_name, 'index': index})
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

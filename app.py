@@ -89,6 +89,8 @@ class Record(db.Model):
     question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
     user_answer = db.Column(db.Text)
     is_correct = db.Column(db.Boolean)
+    display_name = db.Column(db.String(50))  # 用户自定义名称
+    ip_address = db.Column(db.String(45))  # IP地址
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 @login_manager.user_loader
@@ -257,6 +259,16 @@ def migrate_db():
             )
         if len(no_opts) > 0:
             print(f"MIGRATE: Deleted {len(no_opts)} questions with no options")
+
+    # 7. records表添加display_name和ip_address列
+    if 'records' in table_names:
+        rec_cols = [col['name'] for col in inspector.get_columns('records')]
+        if 'display_name' not in rec_cols:
+            print("MIGRATE: Adding display_name column to records...")
+            db.session.execute(sa.text("ALTER TABLE records ADD COLUMN display_name VARCHAR(50)"))
+        if 'ip_address' not in rec_cols:
+            print("MIGRATE: Adding ip_address column to records...")
+            db.session.execute(sa.text("ALTER TABLE records ADD COLUMN ip_address VARCHAR(45)"))
 
     db.session.commit()
 
@@ -478,13 +490,26 @@ def parse_word(path):
 @app.route('/')
 def index():
     if not current_user.is_authenticated:
-        # 自动以admin身份登录（无需手动登录）
         admin = User.query.filter_by(username='admin').first()
         if admin:
             login_user(admin)
-        else:
-            return redirect(url_for('login'))
+    # 检查是否设置了用户名，没有则返回命名页面
+    if not session.get('display_name'):
+        return render_template('name_input.html')
     return render_template('index.html')
+
+
+@app.route('/api/set_name', methods=['POST'])
+def set_name():
+    """设置用户名（无需登录即可调用）"""
+    d = request.json or {}
+    name = (d.get('name', '') or '').strip()
+    if not name or len(name) < 1:
+        return jsonify({'error': '请输入你的名字'}), 400
+    if len(name) > 30:
+        return jsonify({'error': '名字太长（最多30字）'}), 400
+    session['display_name'] = name
+    return jsonify({'success': True, 'name': name})
 
 @app.route('/login', methods=['GET','POST'])
 def login():
@@ -914,7 +939,9 @@ def check():
             user_id=current_user.id,
             question_id=qid,
             user_answer=str(ua),
-            is_correct=bool(correct)
+            is_correct=bool(correct),
+            display_name=session.get('display_name', ''),
+            ip_address=request.remote_addr or ''
         ))
         db.session.commit()
     except:
@@ -929,8 +956,13 @@ def check():
 @login_required
 def stats():
     total = Question.query.count()
-    ans = Record.query.filter_by(user_id=current_user.id).count()
-    cor = Record.query.filter_by(user_id=current_user.id, is_correct=True).count()
+    dn = session.get('display_name', '')
+    if dn:
+        ans = Record.query.filter_by(display_name=dn).count()
+        cor = Record.query.filter_by(display_name=dn, is_correct=True).count()
+    else:
+        ans = Record.query.filter_by(user_id=current_user.id).count()
+        cor = Record.query.filter_by(user_id=current_user.id, is_correct=True).count()
     return jsonify({
         'total': total,
         'answered': ans,
@@ -941,11 +973,14 @@ def stats():
 @app.route('/api/wrong_questions')
 @login_required
 def wrong_qs():
-    """获取错题列表"""
-    wrong_records = Record.query.filter_by(
-        user_id=current_user.id,
-        is_correct=False
-    ).order_by(Record.created_at.desc()).all()
+    """获取错题列表（按当前用户名过滤）"""
+    dn = session.get('display_name', '')
+    q_base = Record.query.filter(is_correct=False)
+    if dn:
+        q_base = q_base.filter_by(display_name=dn)
+    else:
+        q_base = q_base.filter_by(user_id=current_user.id)
+    wrong_records = q_base.order_by(Record.created_at.desc()).all()
 
     result = []
     seen = set()
@@ -992,9 +1027,117 @@ def set_username():
 @login_required
 def clear_my_data():
     """清除当前用户的所有答题记录"""
-    count = Record.query.filter_by(user_id=current_user.id).delete()
+    dn = session.get('display_name', '')
+    if dn:
+        count = Record.query.filter_by(display_name=dn).delete()
+    else:
+        count = Record.query.filter_by(user_id=current_user.id).delete()
     db.session.commit()
     return jsonify({'success': True, 'count': count, 'message': f'已清除 {count} 条记录'})
+
+
+# ==================== Admin Dashboard APIs ====================
+@app.route('/api/admin/users')
+@login_required
+def admin_users():
+    """获取所有用户列表（管理员）"""
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+    
+    # 获取所有使用过的display_name
+    users_info = db.session.query(
+        Record.display_name, db.func.count(Record.id),
+        db.func.sum(db.case((Record.is_correct == True, 1), else_=0)),
+        db.func.min(Record.created_at),
+        db.func.max(Record.created_at)
+    ).group_by(Record.display_name).all()
+    
+    result = []
+    for row in users_info:
+        name, total, correct, first_seen, last_seen = row
+        # 获取IP地址
+        ips = db.session.query(Record.ip_address).filter(
+            Record.display_name == name, Record.ip_address != None
+        ).distinct().all()
+        ip_list = [ip[0] for ip in ips]
+        
+        result.append({
+            'name': name,
+            'total_answered': total or 0,
+            'correct': correct or 0,
+            'accuracy': round(correct / total * 100, 1) if total and correct else 0,
+            'first_seen': str(first_seen)[:16] if first_seen else '',
+            'last_seen': str(last_seen)[:16] if last_seen else '',
+            'ips': ', '.join(ip_list[:5]),
+            'ip_count': len(ip_list)
+        })
+    
+    return jsonify(result)
+
+@app.route('/api/admin/user_detail')
+@login_required
+def admin_user_detail():
+    """获取某用户的详细错题记录"""
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+    name = request.args.get('name', '')
+    records = Record.query.filter_by(display_name=name, is_correct=False).order_by(Record.created_at.desc()).limit(50).all()
+    result = []
+    seen = set()
+    for r in records:
+        if r.question_id not in seen:
+            seen.add(r.question_id)
+            q = Question.query.get(r.question_id)
+            if q:
+                result.append({
+                    'id': q.id, 'question': q.question[:60], 'answer': q.answer,
+                    'user_answer': r.user_answer, 'type': q.type, 'subject': q.display_subject
+                })
+    return jsonify(result)
+
+@app.route('/api/admin/batch_delete_questions', methods=['POST'])
+@login_required
+def admin_batch_delete_questions():
+    """批量删除题目"""
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+    d = request.json
+    ids = d.get('ids', [])
+    if not isinstance(ids, list):
+        return jsonify({'error': 'ids必须是数组'}), 400
+    count = 0
+    for qid in ids:
+        q = Question.query.get(qid)
+        if q:
+            Record.query.filter_by(question_id=qid).delete()
+            db.session.delete(q)
+            count += 1
+    db.session.commit()
+    return jsonify({'success': True, 'count': count})
+
+@app.route('/api/admin/backup')
+@login_required
+def admin_backup():
+    """导出全部题库为JSON（备份用）"""
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+    
+    subjects = Subject.query.order_by(Subject.sort_order.asc(), Subject.id.asc()).all()
+    questions = Question.query.all()
+    
+    data = {
+        'subjects': [{'id': s.id, 'name': s.name, 'sort_order': s.sort_order} for s in subjects],
+        'questions': [{
+            'id': q.id, 'type': q.type, 'question': q.question,
+            'options': q.options or '', 'answer': q.answer,
+            'explanation': q.explanation or '',
+            'subject_id': q.subject_id, 'subject_name': q.subject_name
+        } for q in questions],
+        'exported_at': datetime.utcnow().isoformat(),
+        'total_questions': len(questions),
+        'total_subjects': len(subjects)
+    }
+    return jsonify(data)
 
 @app.route('/api/move_question', methods=['POST'])
 @login_required

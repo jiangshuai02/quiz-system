@@ -314,6 +314,7 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
   <button class="nav-item admin-only" data-page="import">📥 导入</button>
   <button class="nav-item" data-page="wrong">❌ 错题本</button>
   <button class="nav-item" data-page="stats">📊 统计</button>
+  <button class="nav-item admin-only" data-page="admin">⚙️ 管理后台</button>
 </div>
 
 <!-- ======================================================================== -->
@@ -334,13 +335,6 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
       <select id="sub-select" onchange="sub=this.value">
         <option value="__all__">全部题目</option>
       </select>
-    </div>
-
-    <div class="setting-row">
-      <label class="toggle-label" onclick="toggleAutoNext()">
-        <span class="toggle-track"><span class="toggle-thumb" id="auto-next-toggle"></span></span>
-        <span>答对后自动跳转下一题</span>
-      </label>
     </div>
 
     <div class="mode-grid">
@@ -372,6 +366,18 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
     <div class="quiz-top">
       <button class="btn btn-ghost btn-sm" onclick="showModeSelect()">← 返回选择模式</button>
       <span class="quiz-mode-badge" id="mode-badge">乱序答题</span>
+    </div>
+
+    <!-- Auto-advance settings (in quiz area) -->
+    <div class="quiz-settings">
+      <label class="toggle-label" onclick="toggleAutoNext()">
+        <span class="toggle-track"><span class="toggle-thumb" id="auto-next-toggle"></span></span>
+        <span>答对后自动跳转</span>
+      </label>
+      <label class="toggle-label" onclick="toggleAutoNextCorrect()">
+        <span class="toggle-track"><span class="toggle-thumb" id="auto-next-correct-toggle"></span></span>
+        <span>仅答对才跳转（答错停留）</span>
+      </label>
     </div>
 
     <div class="q-card" id="q-card">
@@ -526,13 +532,92 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
   <div class="stat-grid" id="stat-grid"></div>
 </div>
 
+
+</div><!-- /.app -->
+
+<!-- ======================================================================== -->
+<!-- PAGE: Admin (管理后台) -->
+<!-- ======================================================================== -->
+<div id="page-admin" class="page">
+  <div class="section-header">
+    <div>
+      <div class="section-title">⚙️ 管理后台</div>
+      <div class="section-subtitle">查看用户情况、管理题库、备份数据</div>
+    </div>
+    <div class="section-actions">
+      <button class="btn btn-default btn-sm" onclick="loadAdminUsers()">🔄 刷新用户列表</button>
+    </div>
+  </div>
+
+  <!-- ===== 用户列表 ===== -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">👥 用户列表</div>
+      <span id="admin-user-count" style="font-size:13px;color:var(--text-muted)"></span>
+    </div>
+    <div id="admin-user-list" style="overflow-x:auto">
+      <div class="empty-state"><span class="icon">⏳</span><div class="msg">加载中...</div></div>
+    </div>
+  </div>
+
+  <!-- ===== 批量删除题目 ===== -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">🗑️ 批量删除题目</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:13px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:6px">按科目选择</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <select id="admin-del-sub" style="flex:1;min-width:160px;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:var(--card);color:var(--text)">
+          <option value="">-- 选择科目 --</option>
+        </select>
+        <button class="btn btn-danger btn-sm" onclick="adminLoadSubQuestions()">📋 列出该科目题目</button>
+      </div>
+    </div>
+    <div id="admin-del-list" style="max-height:300px;overflow-y:auto;margin-bottom:14px;display:none">
+      <!-- 动态加载的题目列表，每项带复选框 -->
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <label class="toggle-label" style="cursor:pointer;user-select:none;font-size:13px">
+        <input type="checkbox" id="admin-select-all" onchange="adminToggleAll()" style="margin-right:4px"> 全选
+      </label>
+      <span id="admin-del-count" style="font-size:13px;color:var(--text-muted)">已选 0 题</span>
+      <div style="flex:1"></div>
+      <button class="btn btn-danger" onclick="batchDeleteQuestions()" id="btn-batch-del">🗑️ 删除选中题目</button>
+    </div>
+  </div>
+
+  <!-- ===== 题库备份 ===== -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">💾 题库备份</div>
+    </div>
+    <p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6">
+      将当前所有题目和科目导出为 JSON 格式文件，方便备份和迁移。
+    </p>
+    <button class="btn btn-primary" onclick="backupData()">📥 下载备份 (JSON)</button>
+  </div>
+
+  <!-- ===== 用户详情弹窗 ===== -->
+  <div id="admin-user-detail-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:9999;align-items:center;justify-content:center" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:var(--card);border-radius:var(--radius);padding:28px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto">
+      <div class="section-header" style="margin-bottom:16px">
+        <div class="section-title" id="admin-modal-title">用户详情</div>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('admin-user-detail-modal').style.display='none'">✕ 关闭</button>
+      </div>
+      <div id="admin-modal-body"></div>
+    </div>
+  </div>
+</div>
+
 </div><!-- /.app -->
 
 <script>
 // ==================== Global State ====================
 let qs = [], idx = 0, ans = null, role = 'user', sub = '__all__', mode = '';
 let answered = 0, correct = 0, allSubs = [];
-let autoNext = false; // 自动跳转下一题
+let autoNext = false; // 答对自动跳转
+let autoNextCorrect = false; // 仅答对才跳转（答错不跳）
 let currentUserName = ''; // 当前用户名
 
 // ==================== Init ====================
@@ -547,8 +632,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 加载保存的用户名和设置
   currentUserName = localStorage.getItem('current_user_name') || '';
   autoNext = localStorage.getItem('auto_next') === 'true';
+  autoNextCorrect = localStorage.getItem('auto_next_correct') === 'true';
   if (currentUserName) document.getElementById('user-name-input').value = currentUserName;
   updateAutoNextUI();
+  const t2 = document.getElementById('auto-next-correct-toggle');
+  if (t2) { t2.className = 'toggle-thumb' + (autoNextCorrect ? ' active' : ''); }
 
   // 显示admin元素（因为自动登录为admin）
   document.querySelectorAll('.admin-only').forEach(e => { e.style.display = 'block'; e.classList.remove('admin-only'); });
@@ -589,19 +677,29 @@ async function checkAuth() {
 // ==================== User & Settings ====================
 function switchUser(name) {
   name = (name || '').trim();
-  if (!name) { name = '用户' + Math.floor(Math.random() * 10000); }
+  if (!name) { alert('请输入名字！'); return; }
+  if (name.length > 30) { alert('名字太长（最多30字）'); return; }
   currentUserName = name;
   document.getElementById('user-name-input').value = name;
   localStorage.setItem('current_user_name', name);
-  // 通知后端
-  fetch('/api/set_username', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:name}) }).catch(()=>{});
+  // 通知后端（无需登录）
+  fetch('/api/set_name', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:name}) }).catch(()=>{});
   toast('👤 当前用户：' + name);
+  // 重新加载数据
+  loadWrong(); loadStats();
 }
 
 function toggleAutoNext() {
   autoNext = !autoNext;
   localStorage.setItem('auto_next', autoNext ? 'true' : 'false');
   updateAutoNextUI();
+}
+
+function toggleAutoNextCorrect() {
+  autoNextCorrect = !autoNextCorrect;
+  localStorage.setItem('auto_next_correct', autoNextCorrect ? 'true' : 'false');
+  const t = document.getElementById('auto-next-correct-toggle');
+  if (t) { t.className = 'toggle-thumb' + (autoNextCorrect ? ' active' : ''); }
 }
 
 function updateAutoNextUI() {
@@ -630,6 +728,8 @@ function switchPage(page) {
   if (page === 'bank') loadBank();
   if (page === 'stats') loadStats();
   if (page === 'wrong') loadWrong();
+  if (page === 'admin') loadAdmin();
+  if (page === 'import') loadBank(); // 刷新科目下拉
 }
 
 // ==================== Subjects ====================
@@ -866,9 +966,15 @@ async function submitAns() {
     document.getElementById('btn-next').style.display = 'inline-flex';
     document.getElementById('btn-retry').style.display = 'inline-flex';
 
-    // Auto-advance if correct
-    if (d.is_correct && autoNext) {
+    // Auto-advance logic
+    if (autoNext && d.is_correct) {
+      // 答对自动跳转（不管autoNextCorrect）
       setTimeout(() => nextQ(), 800);
+    } else if (!d.is_correct && autoNext && !autoNextCorrect) {
+      // autoNext开启但autoNextCorrect关闭 → 答错也跳转
+      // do nothing, stay on current question
+    } else if (autoNext && d.is_correct && autoNextCorrect) {
+      // 两者都开 → 答对才跳转（已处理上面）
     }
   } catch(e) {
     console.error(e);
@@ -1246,6 +1352,212 @@ function toast(msg) {
   el.textContent = msg;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 2000);
+}
+
+// ==================== Admin Dashboard ====================
+async function loadAdmin() {
+  loadAdminUsers();
+  adminLoadSubjects();
+}
+
+async function loadAdminUsers() {
+  try {
+    const r = await fetch('/api/admin/users');
+    const users = await r.json();
+    const container = document.getElementById('admin-user-list');
+    const countEl = document.getElementById('admin-user-count');
+
+    if (!users.length) {
+      countEl.textContent = '暂无用户记录';
+      container.innerHTML = '<div class="empty-state"><span class="icon">👤</span><div class="msg">暂无用户答题记录</div><div class="sub">用户进入系统答题后才会显示在这里</div></div>';
+      return;
+    }
+
+    countEl.textContent = '共 ' + users.length + ' 位用户';
+
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:14px">' +
+      '<thead><tr style="border-bottom:2px solid var(--border);text-align:left">' +
+      '<th style="padding:10px 8px;color:var(--text-secondary);font-weight:600">用户</th>' +
+      '<th style="padding:10px 8px;color:var(--text-secondary);font-weight:600">总答题</th>' +
+      '<th style="padding:10px 8px;color:var(--text-secondary);font-weight:600">正确</th>' +
+      '<th style="padding:10px 8px;color:var(--text-secondary);font-weight:600">正确率</th>' +
+      '<th style="padding:10px 8px;color:var(--text-secondary);font-weight:600">首次答题</th>' +
+      '<th style="padding:10px 8px;color:var(--text-secondary);font-weight:600">最后答题</th>' +
+      '<th style="padding:10px 8px;color:var(--text-secondary);font-weight:600">IP地址</th>' +
+      '<th style="padding:10px 8px;color:var(--text-secondary);font-weight:600">操作</th>' +
+      '</tr></thead><tbody>';
+
+    users.forEach(u => {
+      html += '<tr style="border-bottom:1px solid var(--border)">' +
+        '<td style="padding:10px 8px;font-weight:600">' + escHtml(u.name || '未知') + '</td>' +
+        '<td style="padding:10px 8px">' + (u.total_answered || 0) + '</td>' +
+        '<td style="padding:10px 8px">' + (u.correct || 0) + '</td>' +
+        '<td style="padding:10px 8px"><span style="color:' + (u.accuracy >= 60 ? 'var(--success)' : 'var(--danger)') + ';font-weight:600">' + (u.accuracy || 0) + '%</span></td>' +
+        '<td style="padding:10px 8px;font-size:12px;color:var(--text-muted)">' + (u.first_seen || '-') + '</td>' +
+        '<td style="padding:10px 8px;font-size:12px;color:var(--text-muted)">' + (u.last_seen || '-') + '</td>' +
+        '<td style="padding:10px 8px;font-size:12px;color:var(--text-muted);max-width:120px;overflow:hidden;text-overflow:ellipsis" title="' + escAttr(u.ips || '') + '">' + (u.ips || '-') + '</td>' +
+        '<td style="padding:10px 8px"><button class="btn btn-ghost btn-sm" onclick="showUserDetail(\'' + escAttr(u.name) + '\')">📋 详情</button></td>' +
+        '</tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  } catch(e) {
+    console.error(e);
+    document.getElementById('admin-user-list').innerHTML = '<div class="empty-state"><span class="icon">⚠️</span><div class="msg">加载失败</div><div class="sub">请检查网络连接</div></div>';
+  }
+}
+
+async function showUserDetail(name) {
+  try {
+    const r = await fetch('/api/admin/user_detail?name=' + encodeURIComponent(name));
+    const records = await r.json();
+    const modal = document.getElementById('admin-user-detail-modal');
+    const title = document.getElementById('admin-modal-title');
+    const body = document.getElementById('admin-modal-body');
+
+    title.textContent = '📋 ' + name + ' 的错题记录';
+
+    if (!records.length) {
+      body.innerHTML = '<div class="empty-state"><span class="icon">🎉</span><div class="msg">该用户没有错题</div></div>';
+    } else {
+      let html = '<p style="color:var(--text-secondary);margin-bottom:12px;font-size:14px">共 ' + records.length + ' 道错题</p>';
+      records.forEach((r, i) => {
+        html += '<div style="padding:12px 14px;background:var(--bg);border-radius:var(--radius-sm);margin-bottom:8px;border-left:3px solid var(--danger)">' +
+          '<div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">#' + (i + 1) + ' [' + getType(r.type) + '] ' + escHtml(r.subject || '') + '</div>' +
+          '<div style="font-size:14px;margin-bottom:6px">' + escHtml(r.question) + '</div>' +
+          '<div style="font-size:13px;background:var(--danger-light);padding:8px 10px;border-radius:6px">' +
+          '你的答案：<span style="color:var(--danger)">' + escHtml(r.user_answer) + '</span> → 正确答案：<span style="color:var(--success)">' + escHtml(r.answer) + '</span>' +
+          '</div></div>';
+      });
+      body.innerHTML = html;
+    }
+
+    modal.style.display = 'flex';
+  } catch(e) {
+    console.error(e);
+    toast('加载用户详情失败');
+  }
+}
+
+async function adminLoadSubjects() {
+  try {
+    const r = await fetch('/api/subjects');
+    const subs = await r.json();
+    const sel = document.getElementById('admin-del-sub');
+    sel.innerHTML = '<option value="">-- 选择科目 --</option>';
+    subs.forEach(s => {
+      sel.innerHTML += '<option value="' + s.id + '">' + escHtml(s.name) + ' (' + s.count + '道)</option>';
+    });
+  } catch(e) { console.error(e); }
+}
+
+async function adminLoadSubQuestions() {
+  const sid = document.getElementById('admin-del-sub').value;
+  if (!sid) { toast('请先选择科目'); return; }
+
+  try {
+    // 获取该科目的名称
+    const sr = await fetch('/api/subjects');
+    const subs = await sr.json();
+    const subName = subs.find(s => s.id == sid)?.name || '';
+
+    const r = await fetch('/api/questions/by_subject/' + encodeURIComponent(subName));
+    const questions = await r.json();
+    const container = document.getElementById('admin-del-list');
+
+    if (!questions.length) {
+      container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">该科目暂无题目</div>';
+    } else {
+      let html = questions.map((q, i) => {
+        const preview = (q.question || '').substring(0, 50);
+        return '<div style="padding:8px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">' +
+          '<input type="checkbox" class="admin-del-cb" value="' + q.id + '" onchange="adminUpdateCount()">' +
+          '<span style="font-size:12px;color:var(--text-muted);min-width:30px">#' + (i + 1) + '</span>' +
+          '<span class="mini-tag" style="background:' + (q.type === 'single' ? '#dbeafe' : q.type === 'multiple' ? '#fef3c7' : q.type === 'judge' ? '#ede9fe' : '#d1fae5') + ';color:var(--text-secondary);padding:2px 8px;border-radius:4px;font-size:11px">' + getType(q.type) + '</span>' +
+          '<span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escHtml(preview) + (q.question && q.question.length > 50 ? '...' : '') + '</span>' +
+          '</div>';
+      }).join('');
+      container.innerHTML = html;
+    }
+
+    container.style.display = 'block';
+    adminUpdateCount();
+  } catch(e) {
+    console.error(e);
+    toast('加载题目失败');
+  }
+}
+
+function adminToggleAll() {
+  const checked = document.getElementById('admin-select-all').checked;
+  document.querySelectorAll('.admin-del-cb').forEach(cb => cb.checked = checked);
+  adminUpdateCount();
+}
+
+function adminUpdateCount() {
+  const count = document.querySelectorAll('.admin-del-cb:checked').length;
+  document.getElementById('admin-del-count').textContent = '已选 ' + count + ' 题';
+}
+
+async function batchDeleteQuestions() {
+  const cbs = document.querySelectorAll('.admin-del-cb:checked');
+  const ids = Array.from(cbs).map(cb => parseInt(cb.value));
+  if (!ids.length) { toast('请先选择要删除的题目'); return; }
+  if (!confirm('确定要永久删除选中的 ' + ids.length + ' 道题目？此操作不可恢复！')) return;
+
+  const btn = document.getElementById('btn-batch-del');
+  btn.disabled = true;
+  btn.textContent = '⏳ 删除中...';
+
+  try {
+    const r = await fetch('/api/admin/batch_delete_questions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: ids })
+    });
+    const d = await r.json();
+    if (d.success) {
+      toast('✅ 成功删除 ' + d.count + ' 道题目');
+      adminLoadSubQuestions(); // 刷新列表
+      loadAdminUsers(); // 刷新用户统计
+      loadBank(); // 刷新题库页
+      document.getElementById('admin-select-all').checked = false;
+      adminUpdateCount();
+    } else {
+      toast('删除失败：' + (d.error || ''));
+    }
+  } catch(e) {
+    toast('删除失败');
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🗑️ 删除选中题目';
+  }
+}
+
+async function backupData() {
+  try {
+    const r = await fetch('/api/admin/backup');
+    const data = await r.json();
+
+    // 创建下载
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.download = 'quiz_backup_' + dateStr + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast('✅ 备份已下载，共 ' + data.total_questions + ' 道题目');
+  } catch(e) {
+    toast('备份失败');
+    console.error(e);
+  }
 }
 </script>
 </body>

@@ -1443,7 +1443,7 @@ def finish_exam():
 
     total = exam.get('total', len(details))
     score = round(correct / total * 100, 1) if total > 0 else 0
-    grade = score >= 90 ? 'A(优秀)' : score >= 80 ? 'B(良好)' : score >= 70 ? 'C(中等)' : score >= 60 ? 'D(及格)' : 'F(不及格)'
+    grade = 'A(优秀)' if score >= 90 else 'B(良好)' if score >= 80 else 'C(中等)' if score >= 70 else 'D(及格)' if score >= 60 else 'F(不及格)'
 
     result = {
         'score': score, 'grade': grade,

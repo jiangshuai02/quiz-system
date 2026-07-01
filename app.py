@@ -1163,6 +1163,78 @@ def admin_user_detail():
                 })
     return jsonify(result)
 
+@app.route('/api/admin/user_scores')
+@login_required
+def admin_user_scores():
+    """获取某用户的历次考试成绩（按时间窗口分组为考试会话）"""
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+    name = request.args.get('name', '')
+    if not name:
+        return jsonify([])
+
+    # 获取该用户的所有答题记录，按时间升序排列
+    records = Record.query.filter_by(display_name=name).order_by(Record.created_at.asc()).all()
+    if not records:
+        return jsonify([])
+
+    # 按时间窗口分组：相邻记录间隔超过10分钟视为不同考试会话
+    sessions = []
+    cur_session = []
+    for r in records:
+        if not cur_session:
+            cur_session.append(r)
+        else:
+            last_time = cur_session[-1].created_at
+            cur_time = r.created_at
+            # 处理时区问题
+            if last_time.tzinfo is None and cur_time.tzinfo is None:
+                gap = (cur_time - last_time).total_seconds()
+            else:
+                gap = abs((cur_time.replace(tzinfo=None) - last_time.replace(tzinfo=None)).total_seconds())
+            if gap > 600:  # 10分钟
+                if cur_session:
+                    sessions.append(cur_session)
+                cur_session = [r]
+            else:
+                cur_session.append(r)
+    if cur_session:
+        sessions.append(cur_session)
+
+    result = []
+    for sess in sessions:
+        total = len(sess)
+        correct = sum(1 for r in sess if r.is_correct)
+        accuracy = round(correct / total * 100, 1) if total else 0
+
+        # 获取该次测试涉及的题目和科目
+        q_ids = list(set(r.question_id for r in sess))
+        subjects = set()
+        for qid in q_ids:
+            q = Question.query.get(qid)
+            if q:
+                subjects.add(q.display_subject)
+
+        # 生成测试名称
+        sub_list = sorted(subjects)
+        test_name = '、'.join(sub_list[:3]) + ('等' if len(sub_list) > 3 else '') + '测试' if sub_list else '其他测试'
+
+        # 时间
+        first_time = sess[0].created_at
+        time_str = _fmt_time(first_time)
+
+        result.append({
+            'time': time_str,
+            'test_name': test_name,
+            'score': correct,
+            'accuracy': accuracy,
+            'total': total
+        })
+
+    # 按时间降序排列（最新的在前）
+    result.reverse()
+    return jsonify(result)
+
 @app.route('/api/admin/batch_delete_questions', methods=['POST'])
 @login_required
 def admin_batch_delete_questions():

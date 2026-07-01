@@ -208,6 +208,11 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang S
     <div class="mo"><div class="moh"><div class="mot" id="wmTitle">错题记录</div><button class="dbtn" onclick="document.getElementById('wrModal').classList.remove('show')">✕</button></div><div id="wmBody"></div></div>
   </div>
 
+  <!-- Scores Modal -->
+  <div class="mol" id="scModal" onclick="if(event.target===this)this.classList.remove('show')">
+    <div class="mo" style="max-width:760px"><div class="moh"><div class="mot" id="scTitle">考试成绩</div><button class="dbtn" onclick="document.getElementById('scModal').classList.remove('show')">✕</button></div><div id="scBody"></div></div>
+  </div>
+
 </div>
 
 <!-- ==================== MAIN JS ==================== -->
@@ -295,6 +300,7 @@ function renderTable(users){
       <td>
         <button class="dbtn dbtn-sm" onclick="showDetail('${nameE}',this)">📋 详情</button>
         <button class="dbtn dbtn-sm" onclick="showWrong('${nameE}')">❌ 错题</button>
+        <button class="dbtn dbtn-sm" onclick="showScores('${nameE}')">📊 成绩</button>
         <button class="dbtn-danger-sm" onclick="delOneUser('${nameE}',this)">🗑 删除</button>
       </td>
     </tr>`;
@@ -394,6 +400,30 @@ async function showWrong(name){
     });
     b.innerHTML=h;document.getElementById('wrModal').classList.add('show');
   }catch(e){toast('加载失败');}
+}
+
+/* ===== 考试成绩弹窗 ===== */
+async function showScores(name){
+  try{
+    const scs=await apiGet('/api/admin/user_scores?name='+encodeURIComponent(name));
+    document.getElementById('scTitle').textContent='📊 '+name+' 的考试成绩（共'+scs.length+'次）';
+    const b=document.getElementById('scBody');
+    if(!scs.length){b.innerHTML='<div class="emp"><span class="ei">📝</span><div class="em">暂无考试记录</div></div>';document.getElementById('scModal').classList.add('show');return;}
+    let h='<table class="tbl"><thead><tr><th>#</th><th>测试名称</th><th>时间</th><th>总分</th><th>正确率</th><th>总题数</th></tr></thead><tbody>';
+    scs.forEach((s,i)=>{
+      const ac=s.accuracy||0,bg=ac>=60?'bg':'br';
+      h+=`<tr>
+        <td>${i+1}</td>
+        <td style="font-weight:600">${esc(s.test_name)}</td>
+        <td style="font-size:12px;color:var(--t2)">${esc(s.time)}</td>
+        <td style="font-weight:700">${s.score||0}</td>
+        <td><span class="badge ${bg}">${ac}%</span></td>
+        <td>${s.total}</td>
+      </tr>`;
+    });
+    h+='</tbody></table>';
+    b.innerHTML=h;document.getElementById('scModal').classList.add('show');
+  }catch(e){toast('加载失败：'+e.message);}
 }
 
 /* ===== 批量删题 ===== */

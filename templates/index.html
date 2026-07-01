@@ -1423,13 +1423,6 @@ async function deleteQuestion(qid) {
 }
 
 // ==================== 工具函数 ====================
-    .catch(e => {
-        console.error('Delete error:', e);
-        alert('删除请求失败');
-    });
-}
-
-// ==================== 工具函数 ====================
 function getTypeName(type) {
     return {'single':'单选题','multiple':'多选题','judge':'判断题','fill':'填空题','essay':'简答题'}[type]||type;
 }

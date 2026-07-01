@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理后台 - 智能刷题系统</title>
+<style>
+/* ========== CSS Variables & Reset ========== */
+:root{
+  --primary:#3b82f6;--primary-light:#60a5fa;--primary-dark:#2563eb;
+  --success:#10b981;--success-light:#d1fae5;
+  --danger:#ef4444;--danger-light:#fee2e2;
+  --warning:#f59e0b;
+  --purple:#8b5cf6;--purple-light:#ede9fe;
+  --bg:#f0f2f5;--card:#fff;--border:#e2e8f0;
+  --text:#1e293b;--text-secondary:#64748b;--text-muted:#94a3b8;
+  --radius:12px;--radius-sm:8px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ========== Login Page ========== */
+.login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;background:linear-gradient(135deg,#1e3a5f 0%,#3b82f6 50%,#8b5cf6 100%)}
+.login-box{background:#fff;border-radius:20px;padding:48px 40px;width:100%;max-width:420px;box-shadow:0 25px 80px rgba(0,0,0,.25)}
+.login-icon{font-size:52px;text-align:center;margin-bottom:20px}
+.login-title{text-align:center;font-size:24px;font-weight:800;color:var(--text);margin-bottom:8px}
+.login-subtitle{text-align:center;font-size:14px;color:var(--text-secondary);margin-bottom:32px}
+.login-input{width:100%;padding:14px 18px;border:2px solid var(--border);border-radius:12px;font-size:16px;outline:none;transition:.25s;margin-bottom:16px;background:var(--bg)}
+.login-input:focus{border-color:var(--primary);box-shadow:0 0 0 4px rgba(59,130,246,.15)}
+.login-btn{width:100%;padding:15px;border:none;border-radius:12px;font-size:17px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--primary),var(--purple));cursor:pointer;transition:.25s;display:flex;align-items:center;justify-content:center;gap:8px}
+.login-btn:hover{transform:translateY(-2px);box-shadow:0 10px 25px rgba(59,130,246,.35)}
+.login-btn:disabled{opacity:.7;transform:none;cursor:not-allowed}
+.login-error{color:var(--danger);font-size:13px;text-align:center;margin-top:12px;display:none}
+
+/* ========== Admin Dashboard (hidden by default) ========== */
+.admin-page{display:none;padding:20px;max-width:1400px;margin:0 auto}
+
+/* Header */
+.admin-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.admin-header-left h1{font-size:22px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px}
+.admin-header-left p{font-size:13px;color:var(--text-secondary);margin-top:2px}
+.admin-header-right{display:flex;align-items:center;gap:10px}
+
+/* Stats Cards Row */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:linear-gradient(135deg,#fff,#f8fafc);border:1px solid var(--border);border-radius:var(--radius);padding:22px 20px;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.stat-card.blue::before{background:linear-gradient(90deg,var(--primary),#93c5fd)}
+.stat-card.green::before{background:linear-gradient(90deg,var(--success),#86efac)}
+.stat-card.orange::before{background:linear-gradient(90deg,var(--warning),#fcd34d)}
+.stat-card.purple::before{background:linear-gradient(90deg,var(--purple),#c4b5fd)}
+.stat-num{font-size:36px;font-weight:900;line-height:1.1;margin-bottom:4px}
+.stat-card.blue .stat-num{color:var(--primary)}
+.stat-card.green .stat-num{color:var(--success)}
+.stat-card.orange .stat-num{color:var(--warning)}
+.stat-card.purple .stat-num{color:var(--purple)}
+.stat-label{font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:6px}
+
+/* Section Card */
+.section{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:20px;overflow:hidden}
+.section-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.section-title{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+.section-body{padding:16px 20px}
+
+/* Table */
+.admin-table{width:100%;border-collapse:collapse;font-size:14px}
+.admin-table th{padding:11px 12px;text-align:left;font-weight:600;color:var(--text-secondary);background:#f8fafc;border-bottom:2px solid var(--border);white-space:nowrap}
+.admin-table td{padding:11px 12px;border-bottom:1px solid #f1f5f9;color:var(--text)}
+.admin-table tr:hover td{background:#f8fafc}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600}
+.badge-success{background:var(--success-light);color:#065f46}
+.badge-danger{background:var(--danger-light);color:#991b1b}
+.badge-warning{background:#fef3c7;color:#92400e}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;transition:.2s;background:var(--card);color:var(--text)}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.btn-primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn-ghost{background:transparent;border-color:transparent}
+.btn-ghost:hover{background:#f1f5f9}
+
+/* Form elements */
+.form-select{padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;background:var(--card);color:var(--text);min-width:160px;outline:none}
+.form-select:focus{border-color:var(--primary)}
+
+/* Delete list */
+.del-list-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid #f1f5f9}
+.del-list-item:hover{background:#fefce8}
+.del-check{width:18px;height:18px;accent-color:var(--danger)}
+.del-index{font-size:12px;color:var(--text-muted);min-width:28px}
+.del-type{font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600}
+.del-preview{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border-radius:16px;padding:28px;max-width:700px;width:92%;max-height:85vh;overflow-y:auto;box-shadow:0 25px 60px rgba(0,0,0,.2)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.modal-title{font-size:18px;font-weight:700}
+
+/* Empty state */
+.empty-state{text-align:center;padding:50px 20px;color:var(--text-muted)}
+.empty-state .icon{font-size:48px;margin-bottom:12px;display:block}
+.empty-state .msg{font-size:15px;font-weight:600;margin-bottom:4px}
+.empty-state .sub{font-size:13px;color:var(--text-muted)}
+
+/* Toast */
+.toast{position:fixed;top:20px;right:20px;background:var(--text);color:#fff;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;z-index:99999;animation:slideIn .3s ease}
+@keyframes slideIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+
+/* Responsive */
+@media(max-width:768px){
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+  .admin-table{font-size:12px}
+  .admin-table th,.admin-table td{padding:8px 6px}
+  .login-box{padding:36px 24px}
+}
+@media(max-width:480px){.stats-row{grid-template-columns:1fr}}
+</style>
+</head>
+
+<body>
+
+<!-- ==================== LOGIN PAGE ==================== -->
+<div class="login-page" id="loginPage">
+  <div class="login-box">
+    <div class="login-icon">🔐</div>
+    <div class="login-title">管理后台</div>
+    <div class="login-subtitle">智能刷题系统 · 管理控制台</div>
+    <input type="text" id="loginUser" class="login-input" placeholder="请输入管理员账号" autofocus
+      onkeydown="if(event.key==='Enter')document.getElementById('loginPass').focus()">
+    <input type="password" id="loginPass" class="login-input" placeholder="请输入管理员密码"
+      onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" id="btnLogin" onclick="doLogin()">🔑 登录后台</button>
+    <div class="login-error" id="loginError">账号或密码错误，请重试</div>
+  </div>
+</div>
+
+<!-- ==================== ADMIN DASHBOARD ==================== -->
+<div class="admin-page" id="adminPage">
+
+  <!-- Header -->
+  <div class="admin-header">
+    <div class="admin-header-left">
+      <h1>📊 管理后台</h1>
+      <p>查看用户数据、管理题库内容</p>
+    </div>
+    <div class="admin-header-right">
+      <span style="font-size:13px;color:var(--text-muted)">管理员：<strong>姜帅</strong></span>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()" title="退出登录">🚪 退出</button>
+    </div>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card blue"><div class="stat-num" id="statUsers">-</div><div class="stat-label">👥 注册用户数</div></div>
+    <div class="stat-card green"><div class="stat-num" id="statTotal">-</div><div class="stat-label">✅ 总答题次数</div></div>
+    <div class="stat-card orange"><div class="stat-num" id="statQs">-</div><div class="stat-label">📚 题库题目数</div></div>
+    <div class="stat-card purple"><div class="stat-num" id="statAcc">-</div><div class="stat-label">📈 平均正确率</div></div>
+  </div>
+
+  <!-- Users Table -->
+  <div class="section">
+    <div class="section-head">
+      <div class="section-title">👥 用户答题记录</div>
+      <button class="btn btn-sm" onclick="loadData()">🔄 刷新数据</button>
+    </div>
+    <div class="section-body">
+      <div id="userTableArea"><div class="empty-state"><span class="icon">⏳</span><div class="msg">加载中...</div></div></div>
+    </div>
+  </div>
+
+  <!-- Batch Delete Questions -->
+  <div class="section">
+    <div class="section-head">
+      <div class="section-title">🗑️ 批量删除题目</div>
+    </div>
+    <div class="section-body">
+      <div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <label style="font-size:13px;font-weight:600;color:var(--text-secondary)">选择科目：</label>
+        <select id="delSub" class="form-select" onchange="loadQuestions()"></select>
+        <span id="delCount" style="font-size:13px;color:var(--text-muted)"></span>
+      </div>
+      <div id="delList" style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);display:none"></div>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
+        <label style="font-size:13px;cursor:pointer"><input type="checkbox" id="selectAllDel" onchange="toggleAllDel()"> 全选/取消</label>
+        <span id="selCount" style="font-size:13px;color:var(--text-muted)">已选 0 题</span>
+        <div style="flex:1"></div>
+        <button class="btn btn-danger btn-sm" onclick="doBatchDelete()" id="btnBatchDel">🗑️ 删除选中（0）</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Backup -->
+  <div class="section">
+    <div class="section-head">
+      <div class="section-title">💾 数据备份与导出</div>
+    </div>
+    <div class="section-body" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+      <p style="font-size:14px;color:var(--text-secondary);flex:1;min-width:200px">
+        将所有科目和题目导出为 JSON 文件用于备份或迁移。
+      </p>
+      <button class="btn btn-primary" onclick="doBackup()">📥 下载完整备份</button>
+    </div>
+  </div>
+
+</div><!-- /.admin-page -->
+
+<!-- Modal for user detail -->
+<div class="modal-overlay" id="detailModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">用户详情</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">✕ 关闭</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+// ==================== Auth ====================
+const ADMIN_USER = '\u59DC\u5E05'; // 姜帅
+const ADMIN_PASS = '17539363075';
+
+function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value.trim();
+  const err = document.getElementById('loginError');
+  const btn = document.getElementById('btnLogin');
+
+  if (!u || !p) { err.textContent='请填写账号和密码';err.style.display='block'; return; }
+  if (u !== ADMIN_USER || p !== ADMIN_PASS) { err.textContent='账号或密码错误，请重试';err.style.display='block'; return; }
+
+  // Login success
+  sessionStorage.setItem('admin_logged', 'true');
+  sessionStorage.setItem('admin_name', ADMIN_USER);
+  showDashboard();
+}
+
+function doLogout() {
+  sessionStorage.removeItem('admin_logged');
+  document.getElementById('adminPage').style.display='none';
+  document.getElementById('loginPage').style.display='flex';
+  document.getElementById('loginPass').value='';
+}
+
+function checkAuth() {
+  if (sessionStorage.getItem('admin_logged') === 'true') {
+    showDashboard();
+  } else {
+    document.getElementById('loginPage').style.display='flex';
+  }
+}
+
+function showDashboard() {
+  document.getElementById('loginPage').style.display='none';
+  document.getElementById('adminPage').style.display='block';
+  loadData();
+}
+
+// ==================== Data Loading ====================
+async function loadData() {
+  try {
+    // Load users + stats in parallel
+    const [usersRes, subsRes] = await Promise.all([
+      fetch('/api/admin/users'),
+      fetch('/api/subjects')
+    ]);
+    const users = await usersRes.json();
+    const subs = await subsRes.json();
+
+    renderStats(users, subs);
+    renderTable(users);
+    populateSubjectSelect(subs);
+  } catch(e) { console.error(e); toast('加载失败'); }
+}
+
+function renderStats(users, subs) {
+  let totalAns=0, totalCorrect=0, qCount=0;
+
+  // User stats
+  document.getElementById('statUsers').textContent = users.length;
+  users.forEach(u => { totalAns += (u.total_answered||0); totalCorrect += (u.correct||0); });
+  document.getElementById('statTotal').textContent = totalAns;
+
+  // Question count from subjects
+  subs.forEach(s => { qCount += (s.count||0); });
+  document.getElementById('statQs').textContent = qCount;
+
+  // Average accuracy
+  const avgAcc = totalAns > 0 ? ((totalCorrect/totalAns)*100).toFixed(1) : '0.0';
+  document.getElementById('statAcc').textContent = avgAcc + '%';
+
+  // Animate numbers
+  animateNum('statUsers');
+  animateNum('statTotal');
+  animateNum('statQs');
+  animateNum('statAcc');
+}
+
+function animateNum(id) {
+  const el=document.getElementById(id);
+  const target=el.textContent;
+  el.style.transform='scale(1.15)';
+  setTimeout(()=>el.style.transform='',250);
+}
+
+function renderTable(users) {
+  const area=document.getElementById('userTableArea');
+  if (!users.length) {
+    area.innerHTML='<div class="empty-state"><span class="icon">👤</span><div class="msg">暂无用户记录</div><div class="sub">用户进入系统并答题后会显示在这里</div></div>';
+    return;
+  }
+
+  let html='<table class="admin-table"><thead><tr>';
+  html+='<th>#</th><th>用户名</th><th>总答题</th><th>答对</th><th>正确率</th><th>首次答题</th><th>最后活跃</th><th>IP地址</th><th>操作</th>';
+  html+='</tr></thead><tbody>';
+
+  users.forEach((u,i) => {
+    const acc=u.accuracy||0;
+    const badgeClass=acc>=80?'badge-success':acc>=50?'badge-warning':'badge-danger';
+    html+='<tr>';
+    html+='<td>'+(i+1)+'</td>';
+    html+='<td style="font-weight:700">'+escHtml(u.name||'未知')+'</td>';
+    html+='<td>'+(u.total_answered||0)+'</td>';
+    html+='<td>'+(u.correct||0)+'</td>';
+    html+='<td><span class="badge '+badgeClass+'">'+acc+'%</span></td>';
+    html+='<td style="color:var(--text-muted);font-size:12px">'+(u.first_seen||'-')+'</td>';
+    html+='<td style="color:var(--text-muted);font-size:12px">'+(u.last_seen||'-')+'</td>';
+    html+='<td style="font-size:12px;color:var(--text-muted);max-width:120px;overflow:hidden;text-overflow:ellipsis" title="'+escAttr(u.ips||'')+'">'+(u.ips||'-')+'</td>';
+    html+='<td><button class="btn btn-sm btn-ghost" onclick="showDetail(\''+escAttr(u.name)+'\')">📋 查看错题</button></td>';
+    html+='</tr>';
+  });
+
+  html+='</tbody></table>';
+  area.innerHTML=html;
+}
+
+async function showDetail(name) {
+  try {
+    const r = await fetch('/api/admin/user_detail?name='+encodeURIComponent(name));
+    const records = await r.json();
+    document.getElementById('modalTitle').textContent='\uD83D\uDCBE '+name+' 的错题记录';
+    const body = document.getElementById('modalBody');
+
+    if (!records.length) {
+      body.innerHTML='<div class="empty-state"><span class="icon">\uD83C\uDF89</span><div class="msg">该用户没有错题记录！</div><div class="sub">太棒了，继续保持！</div></div>';
+    } else {
+      let h='<p style="margin-bottom:16px;font-size:14px;color:var(--text-secondary)">共 <strong>'+records.length+'</strong> 道错题：</p>';
+      records.forEach((r,i)=>{
+        const tMap={single:'单选题',multiple:'多选题',judge:'判断题',fill:'填空题',essay:'简答题'};
+        h+='<div style="padding:14px;background:var(--danger-light);border-radius:10px;margin-bottom:10px;border-left:4px solid var(--danger)">';
+        h+='<div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">#'+(i+1)+' ['+(tMap[r.type]||r.type)+'] '+escHtml(r.subject||'')+'</div>';
+        h+='<div style="font-size:15px;font-weight:600;margin-bottom:8px">'+escHtml(r.question)+'</div>';
+        h+='<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:13px">';
+        h+='<span style="background:#fee2e2;padding:4px 10px;border-radius:6px;color:var(\u2013danger)\">\u274C 你的答案：'+escHtml(r.user_answer)+'</span>';
+        h+='<span style="background:#d1fae5;padding:4px 10px;border-radius:6px;color:var(\u2013success)\">\u2705 正确答案：'+escHtml(r.answer)+'</span>';
+        h+='</div></div>';
+      });
+      body.innerHTML=h;
+    }
+    document.getElementById('detailModal').classList.add('show');
+  } catch(e) { console.error(e); toast('加载失败'); }
+}
+
+function closeModal() { document.getElementById('detailModal').classList.remove('show'); }
+
+// ==================== Subject Select & Delete ====================
+let currentQuestions = [];
+
+function populateSubjectSelect(subs) {
+  const sel = document.getElementById('delSub');
+  sel.innerHTML = '<option value="">-- 选择科目查看题目 --</option>';
+  subs.forEach(s => {
+    sel.innerHTML += '<option value="' + s.id + '">' + escHtml(s.name) + ' (' + s.count + '道)</option>';
+  });
+}
+
+async function loadQuestions() {
+  const sid = document.getElementById('delSub').value;
+  const list = document.getElementById('delList');
+  const countEl = document.getElementById('delCount');
+
+  if (!sid) {
+    list.style.display = 'none';
+    countEl.textContent = '';
+    return;
+  }
+
+  try {
+    const sr = await fetch('/api/subjects');
+    const subs = await sr.json();
+    const subName = subs.find(s => s.id == sid)?.name || '';
+
+    const r = await fetch('/api/questions/by_subject/' + encodeURIComponent(subName));
+    currentQuestions = await r.json();
+    list.style.display = 'block';
+    countEl.textContent = '共 ' + currentQuestions.length + ' 题';
+
+    if (!currentQuestions.length) {
+      list.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-muted)">该科目暂无题目</div>';
+    } else {
+      const bg={single:'#dbeafe',multiple:'#fef3c7',judge:'#ede9fe',fill:'#d1fae5',essay:'#fce7f3'};
+      const tc={single:'#2563eb',multiple:'#d97706',judge:'#7c3aed',fill:'#059669',essay:'#db2777'};
+      list.innerHTML = currentQuestions.map((q,i)=>'<div class="del-list-item">'+
+        '<input type="checkbox" class="del-cb" value="'+q.id+'" onchange="updateDelCount()">'+
+        '<span class="del-index">#'+(i+1)+'</span>'+
+        '<span class="del-type" style="background:'+(bg[q.type]||'#eee')+';color:'+(tc[q.type]||'#333')+'">'+getType(q.type)+'</span>'+
+        '<span class="del-preview">'+escHtml((q.question||'').substring(0,55))+'</span>'+
+        '</div>').join('');
+    }
+    updateDelCount();
+    document.getElementById('selectAllDel').checked=false;
+  } catch(e) { console.error(e); toast('加载失败'); }
+}
+
+function toggleAllDel() {
+  const checked = document.getElementById('selectAllDel').checked;
+  document.querySelectorAll('.del-cb').forEach(cb => cb.checked = checked);
+  updateDelCount();
+}
+
+function updateDelCount() {
+  const n = document.querySelectorAll('.del-cb:checked').length;
+  document.getElementById('selCount').textContent = '已选 ' + n + ' 题';
+  document.getElementById('btnBatchDel').textContent = '🗑️ 删除选中（'+n+'）';
+}
+
+async function doBatchDelete() {
+  const ids = Array.from(document.querySelectorAll('.del-cb:checked')).map(cb=>parseInt(cb.value));
+  if (!ids.length) { toast('请先勾选要删除的题目'); return; }
+  if (!confirm('确定永久删除选中的 '+ids.length+' 道题目？\n此操作不可恢复！')) return;
+
+  const btn = document.getElementById('btnBatchDel');
+  btn.disabled=true; btn.textContent='⏳ 删除中...';
+
+  try {
+    const r = await fetch('/api/admin/batch_delete_questions', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ids:ids})
+    });
+    const d = await r.json();
+    if (d.success) {
+      toast('\u2705 已删除 '+d.count+' 道题目');
+      loadQuestions(); loadData(); // refresh
+    } else { toast('删除失败：'+(d.error||'')); }
+  } catch(e) { toast('删除失败'); }
+  finally { btn.disabled=false; btn.textContent='\uD83D\uDDD1 删除选中（0）'; }
+}
+
+async function doBackup() {
+  try {
+    const r = await fetch('/api/admin/backup');
+    const data = await r.json();
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download='quiz_backup_'+new Date().toISOString().slice(0,10)+'.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('\u2705 备份已下载，共 '+data.total_questions+' 道 '+data.total_subjects+' 个科目');
+  } catch(e) { toast('备份失败'); }
+}
+
+// ==================== Utils ====================
+function getType(t){return{single:'单选',multiple:'多选',judge:'判断',fill:'填空',essay:'简答'}[t]||t;}
+function escHtml(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function escAttr(s){if(!s)return'';return s.replace(/'/g,"\\'").replace(/"/g,"&quot;");}
+function toast(msg){const e=document.createElement('div');e.className='toast';e.textContent=msg;document.body.appendChild(e);setTimeout(()=>e.remove(),2500);}
+
+// Init on load
+checkAuth();
+</script>
+</body>
+</html>

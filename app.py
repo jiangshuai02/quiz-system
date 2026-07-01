@@ -499,6 +499,12 @@ def index():
     return render_template('index.html')
 
 
+@app.route('/admin')
+def admin_page():
+    """管理后台独立页面（前端JS自行验证账号密码）"""
+    return render_template('admin.html')
+
+
 @app.route('/api/set_name', methods=['POST'])
 def set_name():
     """设置用户名（无需登录即可调用）"""

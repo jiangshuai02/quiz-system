@@ -218,11 +218,12 @@ def migrate_db():
 
     # 5. 清洗已有脏数据：题目文本中的答案泄露、选项只有字母等
     if 'questions' in table_names:
-        dirty_qs = db.session.execute(
-            sa.text("SELECT id, question, options FROM questions WHERE question LIKE '%答案%' OR question LIKE '%答案:%' OR options LIKE 'A|B|C|D%' OR options = 'A|B|C|D' OR question REGEXP '[不含不包括没有排除]\\s*[ABCD][\\.。\\、)]'")
+        # 获取所有题目，在Python侧做正则匹配（SQLite不支持REGEXP）
+        all_qs = db.session.execute(
+            sa.text("SELECT id, question, options FROM questions WHERE question LIKE '%答案%' OR question LIKE '%答案:%' OR question LIKE '%不包括%' OR question LIKE '%不属于%' OR question LIKE '%不含%' OR options LIKE 'A|B|C|D%' OR options = 'A|B|C|D'")
         ).fetchall()
         cleaned_count = 0
-        for row in dirty_qs:
+        for row in all_qs:
             qid, qtext, opts = row[0], row[1], row[2] or ''
             new_qtext = re.sub(r'\s*[（(]?\s*\[?[单选|多选|判断|填空|简选|选择题]*\]?\s*[）)]?\s*', '', qtext)
             # 去掉末尾的"答案：xxx"（支持任意内容，包括示例/IP地址等）
@@ -232,7 +233,7 @@ def migrate_db():
             # 去掉题号前缀
             new_qtext = re.sub(r'^\d+[\.\、\)\s]+', '', new_qtext).strip()
             # 去掉嵌入题干中的答案字母泄露（如 "不包括C. 科学社会主义"）
-            new_qtext = re.sub(r'(?:不含|不包括|没有|排除)\s*[ABCD][\.。\、\)]\s*\S.*', r'\1（  ）', new_qtext)
+            new_qtext = re.sub(r'(不含|不包括|不属于|没有|排除)\s*[ABCD][\.。\、\)]\s*\S.*', r'\1（  ）', new_qtext)
             
             # 修复只有字母的选项
             new_opts = opts
@@ -387,10 +388,10 @@ def clean_question_text(raw_text):
     text = re.sub(r'\s*[（(]\s*(正确|错误|A|B)\s*[）)]\s*$', '', text)
 
     # 去掉嵌入题干中的答案字母泄露，如：
-    #   "不包括C. 科学社会主义" → "不包括（  ）"
-    #   "不包含B." → "不包含（  ）"
-    # 匹配：不含/不包括/没有/排除 + 空格? + [ABCD] + [.\、)] + 选项文字
-    text = re.sub(r'(?:不含|不包括|没有|排除)\s*[ABCD][\.。\、\)]\s*\S.*', r'\1（  ）', text)
+    #   "马克思主义...不包括C. 科学社会主义" → "马克思主义...不包括（  ）"
+    #   "下列哪个不属于B. 唯心主义" → "下列哪个不属于（  ）"
+    # 匹配：(不含|不包括|没有|排除) + 空格? + [ABCD] + [.\、)] + 剩余文字到行尾
+    text = re.sub(r'(不含|不包括|不属于|没有|排除)\s*[ABCD][\.。\、\)]\s*\S.*', r'\1（  ）', text)
 
     # 去掉单独的空括号"（）""( )"等，变成占位符
     text = re.sub(r'[（(]\s*[）)]', '（  ）', text)
@@ -465,11 +466,12 @@ def _parse_lines(lines):
                 # 如果之前提取了 raw_answer，优先使用它
                 if cur.get('raw_answer'):
                     ra = cur['raw_answer']
-                    # 判断题特殊处理
-                    if ra in ['对', '正确', 'A']:
-                        cur['answer'] = '正确'
-                    elif ra in ['错', '错误', 'B']:
-                        cur['answer'] = '错误'
+                    # 判断题特殊处理（只有judge类型才转文字）
+                    if cur['type'] == 'judge':
+                        if ra in ['对', '正确', 'A']:
+                            cur['answer'] = '正确'
+                        elif ra in ['错', '错误', 'B']:
+                            cur['answer'] = '错误'
                     elif re.match(r'^[A-D]$', ra):
                         cur['answer'] = ra.upper()
                     else:
@@ -489,10 +491,11 @@ def _parse_lines(lines):
         cur['type'], cur['options'], cur['answer'] = identify_type(cur.get('q', ''), ' '.join(opts))
         if cur.get('raw_answer'):
             ra = cur['raw_answer']
-            if ra in ['对', '正确', 'A']:
-                cur['answer'] = '正确'
-            elif ra in ['错', '错误', 'B']:
-                cur['answer'] = '错误'
+            if cur['type'] == 'judge':
+                if ra in ['对', '正确', 'A']:
+                    cur['answer'] = '正确'
+                elif ra in ['错', '错误', 'B']:
+                    cur['answer'] = '错误'
             elif re.match(r'^[A-D]$', ra):
                 cur['answer'] = ra.upper()
             else:

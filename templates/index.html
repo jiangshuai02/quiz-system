@@ -94,6 +94,8 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
 .toggle-thumb{width:18px;height:18px;background:#fff;border-radius:50%;position:absolute;top:2px;left:2px;transition:.25s;box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .toggle-thumb.active{left:20px;background:var(--primary)}
 
+.quiz-settings{display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:12px;padding:8px 0}
+
 /* ========== Question Card ========== */
 .q-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:28px 30px;
   margin-bottom:16px;border-left:4px solid var(--primary);box-shadow:var(--shadow)}
@@ -903,14 +905,14 @@ async function loadSubs() {
 
   // Practice page selector — 默认选中第一个科目而非"全部题目"
   const sel = document.getElementById('sub-select');
-  let defaultSub = '__all__';
-  if (allSubs.length > 0) defaultSub = allSubs[0].name;
+  let defaultSub = allSubs.length > 0 ? allSubs[0].name : '__all__';
   sel.innerHTML = '<option value="__all__">全部题目 (' + total + '道)</option>';
   allSubs.forEach(x => {
     sel.innerHTML += '<option value="' + escAttr(x.name) + '">' + escHtml(x.name) + ' (' + x.count + '道)</option>';
   });
-  sel.value = sub || defaultSub;
-  if (!sub) sub = defaultSub;
+  // 首次加载时（sub还是初始值'__all__'），自动选第一个科目
+  if (sub === '__all__') sub = defaultSub;
+  sel.value = sub;
 
     // Import page selector
     const imp = document.getElementById('imp-sub');

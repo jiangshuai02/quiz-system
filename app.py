@@ -219,7 +219,7 @@ def migrate_db():
     # 5. 清洗已有脏数据：题目文本中的答案泄露、选项只有字母等
     if 'questions' in table_names:
         dirty_qs = db.session.execute(
-            sa.text("SELECT id, question, options FROM questions WHERE question LIKE '%答案%' OR question LIKE '%答案:%' OR options LIKE 'A|B|C|D%' OR options = 'A|B|C|D'")
+            sa.text("SELECT id, question, options FROM questions WHERE question LIKE '%答案%' OR question LIKE '%答案:%' OR options LIKE 'A|B|C|D%' OR options = 'A|B|C|D' OR question REGEXP '[不含不包括没有排除]\\s*[ABCD][\\.。\\、)]'")
         ).fetchall()
         cleaned_count = 0
         for row in dirty_qs:
@@ -231,6 +231,8 @@ def migrate_db():
             new_qtext = re.sub(r'\s*[（(]\s*(正确|错误|[ABCD])\s*[）)]?\s*$', '', new_qtext).strip()
             # 去掉题号前缀
             new_qtext = re.sub(r'^\d+[\.\、\)\s]+', '', new_qtext).strip()
+            # 去掉嵌入题干中的答案字母泄露（如 "不包括C. 科学社会主义"）
+            new_qtext = re.sub(r'(?:不含|不包括|没有|排除)\s*[ABCD][\.。\、\)]\s*\S.*', r'\1（  ）', new_qtext)
             
             # 修复只有字母的选项
             new_opts = opts
@@ -383,6 +385,12 @@ def clean_question_text(raw_text):
 
     # 去掉末尾的"正确"/"错误"标注（判断题答案泄露）
     text = re.sub(r'\s*[（(]\s*(正确|错误|A|B)\s*[）)]\s*$', '', text)
+
+    # 去掉嵌入题干中的答案字母泄露，如：
+    #   "不包括C. 科学社会主义" → "不包括（  ）"
+    #   "不包含B." → "不包含（  ）"
+    # 匹配：不含/不包括/没有/排除 + 空格? + [ABCD] + [.\、)] + 选项文字
+    text = re.sub(r'(?:不含|不包括|没有|排除)\s*[ABCD][\.。\、\)]\s*\S.*', r'\1（  ）', text)
 
     # 去掉单独的空括号"（）""( )"等，变成占位符
     text = re.sub(r'[（(]\s*[）)]', '（  ）', text)

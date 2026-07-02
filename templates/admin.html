@@ -186,6 +186,8 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang S
         <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <label style="font-size:12px;font-weight:600;color:var(--t2)">导入到科目：</label>
           <select class="sel" id="impSub" style="flex:1;min-width:120px"><option value="">自动识别（默认按文件内容）</option></select>
+          <input type="text" id="impNewSub" class="sel" style="flex:1;min-width:100px;display:none" placeholder="输入新科目名称">
+          <button class="dbtn dbtn-ghost btn-sm" id="toggleNewSubBtn" onclick="toggleImpNewSub()" title="切换到新建科目">+ 新建</button>
           <button class="dbtn dbtn-p" id="impBtn" onclick="doImport()" disabled style="opacity:.5">📥 开始导入</button>
         </div>
         <div id="impResult" style="margin-top:10px"></div>
@@ -547,6 +549,17 @@ function handleFile(f){
   document.getElementById('upArea').innerHTML=`<div style="font-size:36px;margin-bottom:6px">✅</div><div style="font-size:15px;font-weight:700">${esc(f.name)}</div><div style="font-size:12px;color:var(--tm)">${(f.size/1024).toFixed(1)}KB · 点击重新选择</div><input type="file" id="impFile" accept=".docx,.txt" style="display:none" onchange="handleFile(this.files[0])">`;
 }
 
+function toggleImpNewSub(){
+  const sel=document.getElementById('impSub');
+  const ni=document.getElementById('impNewSub');
+  const btn=document.getElementById('toggleNewSubBtn');
+  if(ni.style.display==='none'){
+    sel.style.display='none';ni.style.display='';btn.textContent='← 选择';sel.value='';
+  }else{
+    sel.style.display='';ni.style.display='none';btn.textContent='+ 新建';ni.value='';
+  }
+}
+
 async function doImport(){
   if(!pendingFile){toast('请先选择文件');return;}
   const btn=document.getElementById('impBtn');btn.disabled=true;btn.textContent='⏳ 导入中...';
@@ -556,10 +569,16 @@ async function doImport(){
   try{
     const fd=new FormData();
     fd.append('file',pendingFile);
-    const subId=document.getElementById('impSub').value;
-    if(subId){
-      const sub=allSubs.find(s=>s.id==parseInt(subId));
-      if(sub)fd.append('target_subject',sub.name);
+    const sel=document.getElementById('impSub');
+    const ni=document.getElementById('impNewSub');
+    if(ni.style.display!=='none' && ni.value.trim()){
+      fd.append('new_subject_name', ni.value.trim());
+    }else{
+      const subId=sel.value;
+      if(subId){
+        const sub=allSubs.find(s=>s.id==parseInt(subId));
+        if(sub)fd.append('target_subject',sub.name);
+      }
     }
 
     const r=await fetch('/api/admin/import_file',{method:'POST',body:fd});

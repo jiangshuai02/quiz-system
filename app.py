@@ -191,23 +191,27 @@ def migrate_db():
                 migrated += 1
             else:
                 # 如果subjects表中没有这个名称的科目，创建一个并关联
-                try:
-                    db.session.execute(
-                        sa.text("INSERT INTO subjects (name, description, created_at) VALUES (:name, '', CURRENT_TIMESTAMP)"),
-                        {'name': sname[:50]}
-                    )
-                    new_sub = db.session.execute(
-                        sa.text("SELECT id FROM subjects WHERE name = :name LIMIT 1"),
-                        {'name': sname[:50]}
-                    ).fetchone()
-                    if new_sub:
+                # 但跳过看起来像已删除/临时导入的科目名（避免已删科目反复重现）
+                skip_patterns = ['xuguo版', '副本', 'copy', 'temp', 'tmp', '测试', 'test']
+                is_skip = any(p in sname.lower() for p in skip_patterns)
+                if not is_skip and len(sname) >= 2:
+                    try:
                         db.session.execute(
-                            sa.text("UPDATE questions SET subject_id = :sid WHERE id = :qid"),
-                            {'sid': new_sub[0], 'qid': qid}
+                            sa.text("INSERT INTO subjects (name, description, created_at) VALUES (:name, '', CURRENT_TIMESTAMP)"),
+                            {'name': sname[:50]}
                         )
-                        migrated += 1
-                except Exception:
-                    pass  # 忽略重复键错误等
+                        new_sub = db.session.execute(
+                            sa.text("SELECT id FROM subjects WHERE name = :name LIMIT 1"),
+                            {'name': sname[:50]}
+                        ).fetchone()
+                        if new_sub:
+                            db.session.execute(
+                                sa.text("UPDATE questions SET subject_id = :sid WHERE id = :qid"),
+                                {'sid': new_sub[0], 'qid': qid}
+                            )
+                            migrated += 1
+                    except Exception:
+                        pass  # 忽略重复键错误等
 
         if migrated > 0:
             print(f"MIGRATE: Migrated {migrated} legacy questions to subjects table")
@@ -410,36 +414,64 @@ def clean_subject_name(raw_name):
     return name
 
 
-# ==================== 文件解析（通用）====================
 def _parse_lines(lines):
     """
-    通用行级题目解析器（Word/TXT共用）。
+    通用行级题目解析器（Word/TXT共用）。支持"答案：X"和"解析：xxx"格式。
     输入：文本行列表
-    输出：题目列表 [{'type','question','options','answer','subject'}]
+    输出：题目列表 [{'type','question','options','answer','explanation','subject'}]
     """
     qs = []
     cur = {}
     opts = []
-    current_subject = '\u9ed8\u8ba4\u79d1\u76ee'
+    current_subject = '默认科目'
 
     for line in lines:
         t = line.strip()
         if not t:
             continue
-        # 检测章节标题作为科目名
-        if re.match(r'^[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341]+[\u3001\.]', t) or \
-           re.match(r'^\u7b2c.+[^\u9898]', t) or (len(t) < 20 and '\u7ae0' in t):
+
+        # ===== 检测章节标题作为科目名 =====
+        if re.match(r'^[一二三四五六七八九十]+[、.]', t) or \
+           re.match(r'^第.+[^题]', t) or (len(t) < 20 and '章' in t):
             current_subject = clean_subject_name(t)
             continue
-        if re.match(r'^\d+[\.\u3001\)]', t):
+
+        # ===== 检测答案行（如 "答案：C" / "**答案: C**" 等）=====
+        ans_match = re.match(r'^(?:\*\*)?\s*答案\s*[：:]\s*([A-D对正确错误\d]+[A-D]?)', t, re.IGNORECASE)
+        if ans_match and cur:
+            cur['raw_answer'] = ans_match.group(1).strip()
+            continue  # 不追加到题目文本中
+
+        # ===== 检测解析行（如 "解析：" / "**解析**：" 等）=====
+        exp_match = re.match(r'^(?:\*\*)?\s*解析\s*[：:]\s*(.+)$', t)
+        if exp_match and cur:
+            existing_exp = cur.get('explanation', '')
+            cur['explanation'] = (existing_exp + ' ' + exp_match.group(1).strip()) if existing_exp else exp_match.group(1).strip()
+            continue  # 不追加到题目文本中
+
+        # ===== 普通内容处理 =====
+        if re.match(r'^\d+[\.、)]', t):
+            # 新题目开始 — 先保存上一题
             if cur:
                 cur['type'], cur['options'], cur['answer'] = identify_type(cur.get('q', ''), ' '.join(opts))
+                # 如果之前提取了 raw_answer，优先使用它
+                if cur.get('raw_answer'):
+                    ra = cur['raw_answer']
+                    # 判断题特殊处理
+                    if ra in ['对', '正确', 'A']:
+                        cur['answer'] = '正确'
+                    elif ra in ['错', '错误', 'B']:
+                        cur['answer'] = '错误'
+                    elif re.match(r'^[A-D]$', ra):
+                        cur['answer'] = ra.upper()
+                    else:
+                        cur['answer'] = ra
                 cur['question'] = clean_question_text(cur.get('q', ''))
                 cur['subject'] = current_subject
                 qs.append(cur)
             cur = {'q': t}
             opts = []
-        elif re.match(r'^[A-D][\.\u3001\)]', t):
+        elif re.match(r'^[A-D][\.、)]', t):
             opts.append(t)
         elif cur:
             cur['q'] = cur.get('q', '') + ' ' + t
@@ -447,6 +479,16 @@ def _parse_lines(lines):
     # 处理最后一道题
     if cur:
         cur['type'], cur['options'], cur['answer'] = identify_type(cur.get('q', ''), ' '.join(opts))
+        if cur.get('raw_answer'):
+            ra = cur['raw_answer']
+            if ra in ['对', '正确', 'A']:
+                cur['answer'] = '正确'
+            elif ra in ['错', '错误', 'B']:
+                cur['answer'] = '错误'
+            elif re.match(r'^[A-D]$', ra):
+                cur['answer'] = ra.upper()
+            else:
+                cur['answer'] = ra
         cur['question'] = clean_question_text(cur.get('q', ''))
         cur['subject'] = current_subject
         qs.append(cur)
@@ -944,7 +986,7 @@ def check():
     try:
         # 优先从请求体获取display_name（前端传递），其次从session获取
         dn = (d.get('display_name') or '').strip() or session.get('display_name', '')
-        client_ip = request.remote_addr or ''
+        client_ip = get_client_ip(request)
         db.session.add(Record(
             user_id=current_user.id,
             question_id=qid,
@@ -1140,10 +1182,26 @@ TZ_CN = timezone(timedelta(hours=8))
 # IP地理位置缓存（避免重复查询同一IP）
 _ip_location_cache = {}
 
+def get_client_ip(request):
+    """获取客户端真实IP，优先从代理头获取（适配Render/CDN反向代理）"""
+    xff = request.headers.get('X-Forwarded-For', '')
+    if xff:
+        return xff.split(',')[0].strip()
+    xri = request.headers.get('X-Real-Ip', '')
+    if xri:
+        return xri.strip()
+    return request.remote_addr or ''
+
 def get_ip_location(ip):
     """查询IP地址的地理位置，返回如'中国 河南省 郑州市'的字符串"""
     if not ip or ip in ('127.0.0.1', 'localhost', '::1'):
         return '本地访问'
+    # 排除常见内网IP段
+    if ip.startswith(('10.', '172.16.', '172.17.', '172.18.', '172.19.',
+                       '172.20.', '172.21.', '172.22.', '172.23.', '172.24.',
+                       '172.25.', '172.26.', '172.27.', '172.28.', '172.29.',
+                       '172.30.', '172.31.', '192.168.')):
+        return '局域网'
     if ip in _ip_location_cache:
         return _ip_location_cache[ip]
     try:
@@ -1153,7 +1211,6 @@ def get_ip_location(ip):
         with urllib.request.urlopen(req, timeout=3) as resp:
             data = json.loads(resp.read().decode())
             if data.get('status') == 'success':
-                # 拼接：国家 + 省/州 + 城市（用空格分隔）
                 parts = []
                 country = data.get('country', '')
                 region = data.get('regionName', '')
@@ -1164,9 +1221,12 @@ def get_ip_location(ip):
                 loc = ' '.join(parts)
                 _ip_location_cache[ip] = loc
                 return loc
+            else:
+                _ip_location_cache[ip] = ip
+                return ip
     except Exception as e:
         print(f"[IP lookup] Error for {ip}: {e}")
-    _ip_location_cache[ip] = ip  # 缓存失败结果避免重复查询
+    _ip_location_cache[ip] = ip
     return ip
 
 def _fmt_time(dt):

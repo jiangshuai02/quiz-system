@@ -471,11 +471,15 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
       <span class="quiz-mode-badge" id="mode-badge">乱序答题</span>
     </div>
 
-    <!-- Auto-advance setting -->
+    <!-- Auto-advance + Shuffle settings -->
     <div class="quiz-settings">
       <label class="toggle-label" onclick="toggleAutoNext()">
         <span class="toggle-track"><span class="toggle-thumb" id="auto-next-toggle"></span></span>
         <span>答对后自动跳转下一题</span>
+      </label>
+      <label class="toggle-label" onclick="toggleShuffle()" style="margin-left:20px">
+        <span class="toggle-track"><span class="toggle-thumb" id="shuffle-toggle"></span></span>
+        <span>🔀 选项乱序</span>
       </label>
     </div>
 
@@ -766,6 +770,7 @@ button{cursor:pointer;font:inherit;transition:var(--transition)}
 let qs = [], idx = 0, ans = null, role = 'user', sub = '__all__', mode = '';
 let answered = 0, correct = 0, allSubs = [];
 let autoNext = false; // 答对自动跳转
+let shuffleOpts = true; // 选项乱序（默认开启）
 let currentUserName = ''; // 当前用户名
 
 // ==================== Init ====================
@@ -780,8 +785,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 加载保存的用户名和设置
   currentUserName = localStorage.getItem('current_user_name') || '';
   autoNext = localStorage.getItem('auto_next') === 'true';
+  shuffleOpts = localStorage.getItem('shuffle_opts') !== 'false'; // 默认开启
   if (currentUserName) document.getElementById('user-name-input').value = currentUserName;
   updateAutoNextUI();
+  updateShuffleUI();
 
   // 显示admin元素（因为自动登录为admin）
   document.querySelectorAll('.admin-only').forEach(e => { e.style.display = 'block'; e.classList.remove('admin-only'); });
@@ -851,6 +858,17 @@ function updateAutoNextUI() {
   if (t) { t.className = 'toggle-thumb' + (autoNext ? ' active' : ''); }
 }
 
+function toggleShuffle() {
+  shuffleOpts = !shuffleOpts;
+  localStorage.setItem('shuffle_opts', shuffleOpts ? 'true' : 'false');
+  updateShuffleUI();
+}
+
+function updateShuffleUI() {
+  const t = document.getElementById('shuffle-toggle');
+  if (t) { t.className = 'toggle-thumb' + (shuffleOpts ? ' active' : ''); }
+}
+
 async function clearMyData() {
   if (!confirm('确定要清除「' + (currentUserName||'当前用户') + '」的所有答题记录？此操作不可恢复！')) return;
   try {
@@ -883,12 +901,16 @@ async function loadSubs() {
     allSubs = await r.json();
     const total = allSubs.reduce((s, x) => s + x.count, 0);
 
-    // Practice page selector
-    const sel = document.getElementById('sub-select');
-    sel.innerHTML = '<option value="__all__">全部题目 (' + total + '道)</option>';
-    allSubs.forEach(x => {
-      sel.innerHTML += '<option value="' + escAttr(x.name) + '">' + escHtml(x.name) + ' (' + x.count + '道)</option>';
-    });
+  // Practice page selector — 默认选中第一个科目而非"全部题目"
+  const sel = document.getElementById('sub-select');
+  let defaultSub = '__all__';
+  if (allSubs.length > 0) defaultSub = allSubs[0].name;
+  sel.innerHTML = '<option value="__all__">全部题目 (' + total + '道)</option>';
+  allSubs.forEach(x => {
+    sel.innerHTML += '<option value="' + escAttr(x.name) + '">' + escHtml(x.name) + ' (' + x.count + '道)</option>';
+  });
+  sel.value = sub || defaultSub;
+  if (!sub) sub = defaultSub;
 
     // Import page selector
     const imp = document.getElementById('imp-sub');
@@ -1044,8 +1066,8 @@ function showQ() {
     if ((q.type === 'single' || q.type === 'multiple') && (!opts || opts.length === 0)) {
       optsDiv.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);background:var(--bg);border-radius:var(--radius-sm);font-size:14px">⚠️ 此题暂无选项，请在「题库」中删除后重新导入</div>';
     } else {
-      // Shuffle options in shuffle mode
-      if (mode === 'shuffle' && opts.length > 1) {
+      // Shuffle options when toggle is on (or always in shuffle mode)
+      if ((shuffleOpts || mode === 'shuffle') && opts.length > 1) {
         opts = [...opts].sort(() => Math.random() - 0.5);
       }
 

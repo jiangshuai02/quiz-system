@@ -1,21 +1,32 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
+const ADMIN_PASSWORD = '17539363075';
+
 export default function Welcome() {
   const { signInWithName } = useAuth();
   const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const isJiangshuai = name.trim() === 'jiangshuai';
 
   const handleEnter = async () => {
     const v = name.trim();
     if (!v) { setError('请输入你的名字'); return; }
     if (v.length > 20) { setError('名字不能超过 20 个字'); return; }
+
+    // 管理员需要密码
+    if (v === 'jiangshuai' && password !== ADMIN_PASSWORD) {
+      setError('密码错误');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
       await signInWithName(v);
-      // 不需要 navigate，user 状态变化后弹窗自动隐藏
     } catch (e) {
       setError(e.message || '进入失败，请重试');
     } finally {
@@ -45,9 +56,22 @@ export default function Welcome() {
           />
         </div>
 
+        {isJiangshuai && (
+          <div className="welcome-input-wrap">
+            <input
+              type="password"
+              className="welcome-input"
+              placeholder="🔒 管理员密码"
+              value={password}
+              onChange={e => { setPassword(e.target.value); setError(''); }}
+              onKeyDown={e => { if (e.key === 'Enter') handleEnter(); }}
+            />
+          </div>
+        )}
+
         {error && <div className="welcome-error">{error}</div>}
 
-        <button className="welcome-btn" onClick={handleEnter} disabled={loading || !name.trim()}>
+        <button className="welcome-btn" onClick={handleEnter} disabled={loading || !name.trim() || (isJiangshuai && !password)}>
           {loading ? '进入中...' : '🚀 开始刷题'}
         </button>
 

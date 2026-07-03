@@ -49,7 +49,6 @@ export default function Admin() {
   const [importVisible, setImportVisible] = useState(false);
   const [importText, setImportText] = useState('');
   const [importCat, setImportCat] = useState('javascript');
-  const [importFormat, setImportFormat] = useState('auto'); // auto | json | word
   const [importFile, setImportFile] = useState(null);
   const [catForm, setCatForm] = useState(null);
 
@@ -67,16 +66,6 @@ export default function Admin() {
     loadAll();
   }, [isAdmin]);
 
-  // 编辑公告时填入表单
-  useEffect(() => {
-    if (annForm.editing && announcements.length > 0) {
-      const a = announcements.find(x => x.id === annForm.editing);
-      if (a && (annForm.title !== a.title || annForm.content !== a.content)) {
-        // 已经被打开编辑
-      }
-    }
-  }, [announcements]);
-
   const loadAll = async () => {
     try {
       const results = await Promise.allSettled([
@@ -92,26 +81,25 @@ export default function Admin() {
     finally { setLoading(false); }
   };
 
-  const showMsg = (text, isError = false) => {
+  const showMsg = (text) => {
     setMsg(text);
-    setTimeout(() => setMsg(''), 3000);
+    setTimeout(() => setMsg(''), 4000);
   };
 
   // === User Management ===
   const handleSetAdmin = async (userId, isAdmin, nickname) => {
-    if (!confirm(`${isAdmin ? '设置' : '取消'} ${nickname} 为管理员${isAdmin ? '' : '权限'}?`)) return;
+    if (!confirm(`${isAdmin ? '设置' : '取消'} ${nickname} 为管理员?`)) return;
     try {
       const { error } = await supabase.from('profiles').update({ is_admin: isAdmin }).eq('id', userId);
       if (error) throw error;
       showMsg(`✅ 已${isAdmin ? '设置' : '取消'}管理员`);
       const us = await getAllUsers(); setUsers(us);
-    } catch (e) { showMsg('❌ 失败: ' + e.message, true); }
+    } catch (e) { showMsg('❌ 失败: ' + e.message); }
   };
 
   const handleDeleteUser = async (userId, nickname) => {
     if (!confirm(`⚠️ 确定删除用户「${nickname}」?\n\n此操作将删除:\n• 用户账号\n• 所有错题\n• 所有答题记录\n• 所有考试记录\n• 收藏\n\n此操作不可恢复!`)) return;
     try {
-      // 删除相关数据
       await supabase.from('wrong_answers').delete().eq('user_id', userId);
       await supabase.from('answer_records').delete().eq('user_id', userId);
       await supabase.from('exam_records').delete().eq('user_id', userId);
@@ -120,7 +108,7 @@ export default function Admin() {
       await supabase.from('profiles').delete().eq('id', userId);
       showMsg('✅ 用户已删除');
       const us = await getAllUsers(); setUsers(us);
-    } catch (e) { showMsg('❌ 删除失败: ' + e.message, true); }
+    } catch (e) { showMsg('❌ 删除失败: ' + e.message); }
   };
 
   // === Settings ===
@@ -131,12 +119,12 @@ export default function Admin() {
       await updateSiteSetting('site_description', editDesc);
       setSettings({ site_title: editTitle, site_footer: editFooter, site_description: editDesc });
       showMsg('✅ 设置已保存');
-    } catch (e) { showMsg('❌ 保存失败: ' + e.message, true); }
+    } catch (e) { showMsg('❌ 保存失败: ' + e.message); }
   };
 
   // === Announcements ===
   const handleSaveAnn = async () => {
-    if (!annForm.title.trim()) { showMsg('请输入公告标题', true); return; }
+    if (!annForm.title.trim()) { showMsg('请输入公告标题'); return; }
     try {
       if (annForm.editing) {
         await updateAnnouncement(annForm.editing, { title: annForm.title, content: annForm.content, priority: annForm.priority });
@@ -146,7 +134,7 @@ export default function Admin() {
       setAnnForm({ title: '', content: '', priority: 0, editing: null });
       const a = await getAnnouncements(); setAnnouncements(a);
       showMsg('✅ 公告已保存');
-    } catch (e) { showMsg('❌ ' + e.message, true); }
+    } catch (e) { showMsg('❌ ' + e.message); }
   };
 
   const handleDeleteAnn = async (id) => {
@@ -155,12 +143,12 @@ export default function Admin() {
       await deleteAnnouncement(id);
       setAnnouncements(prev => prev.filter(a => a.id !== id));
       showMsg('✅ 已删除');
-    } catch (e) { showMsg('❌ ' + e.message, true); }
+    } catch (e) { showMsg('❌ ' + e.message); }
   };
 
   // === Questions ===
   const handleSaveQ = async () => {
-    if (!qForm.title.trim()) { showMsg('请输入题目', true); return; }
+    if (!qForm.title.trim()) { showMsg('请输入题目'); return; }
     try {
       const qData = {
         category: qForm.category,
@@ -180,7 +168,7 @@ export default function Admin() {
       setQForm(null);
       const aq = await getAdminQuestions(); setAdminQuestions(aq);
       showMsg('✅ 题目已保存');
-    } catch (e) { showMsg('❌ ' + e.message, true); }
+    } catch (e) { showMsg('❌ ' + e.message); }
   };
 
   const handleEditQ = (q) => {
@@ -198,83 +186,157 @@ export default function Admin() {
       await deleteAdminQuestion(id);
       setAdminQuestions(prev => prev.filter(q => q.id !== id));
       showMsg('✅ 已删除');
-    } catch (e) { showMsg('❌ ' + e.message, true); }
+    } catch (e) { showMsg('❌ ' + e.message); }
   };
 
-  // 批量导入
-  // 智能解析多种格式（JSON、Word/TXT、纯文本）
+  // ========== 智能题目解析（容错版） ==========
+
+  // 主解析函数：支持 JSON / Word / TXT / 纯文本
   const parseImportData = (raw) => {
     const results = [];
     const errors = [];
 
+    if (!raw || !raw.trim()) return { questions: results, errors, format: '空' };
+
     // 1. 尝试每行 JSON
     const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+    let jsonCount = 0;
     for (const line of lines) {
-      if (!line) continue;
-      if (line.startsWith('{') && line.endsWith('}')) {
-        try { results.push(JSON.parse(line)); continue; } catch {}
+      if (line.startsWith('{') && (line.endsWith('}') || line.endsWith('},'))) {
+        try {
+          const cleaned = line.replace(/,\s*$/, '');
+          const obj = JSON.parse(cleaned);
+          if (obj.title) { results.push(obj); jsonCount++; }
+        } catch {}
       }
     }
-    if (results.length > 0) return { questions: results, format: 'JSON' };
+    if (jsonCount >= lines.length / 2) {
+      // 超过一半是 JSON，认为是 JSON 格式
+      return { questions: results, errors, format: 'JSON' };
+    }
 
-    // 2. 解析 Word/TXT 格式: 题目? A.x B.x C.x D.x 答案:X 解析:...
-    const blocks = raw.split(/\n{2,}|={3,}/);
+    // 2. 文本格式：用空行或 === 分隔题目
+    const blocks = raw.split(/\n{2,}|={3,}|---{3,}/);
     for (const block of blocks) {
       const q = parseBlock(block);
-      if (q) results.push(q); else if (block.trim().length > 20) errors.push(block.slice(0, 50));
+      if (q) results.push(q);
+      else if (block.trim().length > 15) errors.push(block.slice(0, 30) + '...');
     }
+
     return { questions: results, errors, format: 'Word/TXT' };
   };
 
+  // 解析单个题目块（容错版）
   const parseBlock = (block) => {
+    if (!block || !block.trim()) return null;
+
     const lines = block.split(/\r?\n/).map(l => l.trim()).filter(l => l);
-    if (lines.length < 3) return null;
+    if (lines.length < 2) return null;
 
-    let title = '', difficulty = 1, type = 'single';
+    let title = '';
+    let difficulty = 1;
+    let type = 'single';
     const options = [];
-    let answer = [], explanation = '';
+    let answer = [];
+    let explanation = '';
+    let titleFound = false;
 
-    for (const line of lines) {
-      // 难度识别
-      if (/^难度[::]?\s*[1-5]/.test(line)) { difficulty = parseInt(line.match(/[1-5]/)[0]); continue; }
-      // 题型识别
-      if (/^(题型|类型)[::]?\s*(单选|多选|判断)/.test(line)) {
-        if (/多选/.test(line)) type = 'multiple';
-        else if (/判断/.test(line)) type = 'single';
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const lowerLine = line.toLowerCase();
+
+      // 1. 题号开头识别：1. 2. (1) (2) 1、 ①
+      // 如果是题号开头且后面是题目内容，把题号去掉
+      const numMatch = line.match(/^[\(（]?\s*(\d{1,2})\s*[\)）、.．,，]\s*(.+)$/);
+      if (numMatch && !titleFound) {
+        title = numMatch[2].trim();
+        titleFound = true;
+        continue;
+      }
+
+      // 2. 难度
+      if (/^难度[::\s]\s*[1-5]/.test(line) || /^difficulty[::\s]\s*[1-5]/i.test(line)) {
+        const m = line.match(/[1-5]/);
+        if (m) difficulty = parseInt(m[0]);
+        continue;
+      }
+
+      // 3. 题型
+      if (/^(题型|类型|question\s*type)[::\s]/i.test(line)) {
+        if (/多选|multiple/i.test(line)) type = 'multiple';
+        else if (/判断|judge/i.test(line)) type = 'single';
         else type = 'single';
         continue;
       }
-      // 答案识别
-      const ansMatch = line.match(/^答案[::]?\s*(.+)$/);
+
+      // 4. 答案
+      const ansMatch = line.match(/^(?:答案|answer|参考答案|正确答案)[::\s]\s*(.+)$/i);
       if (ansMatch) {
         const ansStr = ansMatch[1].trim();
-        const letters = ansStr.match(/[A-Fa-f]/g) || [];
-        answer = letters.map(l => l.toUpperCase().charCodeAt(0) - 65);
-        if (answer.length > 1) type = 'multiple';
+        // 提取 A-Z 字母（包括 "AB" "A,B" "A B" "A和B"）
+        const letters = [];
+        const cleanStr = ansStr.replace(/[、，,和\s]/g, '');
+        for (const ch of cleanStr.toUpperCase()) {
+          if (/[A-F]/.test(ch) && !letters.includes(ch.charCodeAt(0) - 65)) {
+            letters.push(ch.charCodeAt(0) - 65);
+          }
+        }
+        if (letters.length > 0) {
+          answer = letters;
+          if (letters.length > 1) type = 'multiple';
+        }
         continue;
       }
-      // 解析识别
-      const expMatch = line.match(/^(解析|说明|解释)[::]?\s*(.+)$/);
-      if (expMatch) { explanation = expMatch[2].trim(); continue; }
-      // 选项识别
-      const optMatch = line.match(/^([A-F])[.、,．)]\s*(.+)$/);
+
+      // 5. 解析
+      const expMatch = line.match(/^(?:解析|解释|说明|explanation|analysis)[::\s]\s*(.+)$/i);
+      if (expMatch) {
+        explanation = expMatch[1].trim();
+        continue;
+      }
+
+      // 6. 选项（多种格式都支持）
+      // A. xxx / A、xxx / A) xxx / A:xxx / (A) xxx / A xxx
+      const optMatch = line.match(/^[\(（]?\s*([A-Fa-f])\s*[\)）、.．,，:：]\s*(.+)$/);
       if (optMatch) {
-        const idx = optMatch[1].charCodeAt(0) - 65;
-        options[idx] = optMatch[2].trim();
+        const idx = optMatch[1].toUpperCase().charCodeAt(0) - 65;
+        const optText = optMatch[2].trim();
+        if (idx >= 0 && idx < 26) {
+          options[idx] = optText;
+        }
         continue;
       }
-      // 题目
-      if (!title && !line.startsWith('题目') && !line.match(/^[A-F][.、]/)) {
-        title = line.replace(/^题目[::]?\s*/, '').trim();
-      } else if (line.startsWith('题目')) {
-        title = line.replace(/^题目[::]?\s*/, '').trim();
+
+      // 7. 题目前缀 "题目：xxx" / "1. xxx"
+      if (/^题目[::\s]/.test(line) || /^question[::\s]/i.test(line)) {
+        title = line.replace(/^题目[::\s]\s*|^question[::\s]\s*/i, '').trim();
+        titleFound = true;
+        continue;
+      }
+
+      // 8. 兜底：第一个非识别行作为题目
+      if (!titleFound && !title && line.length > 3 && line.length < 500) {
+        // 排除明显不是题目的行
+        if (!line.match(/^[A-Fa-f]\s*[\)）、.．]/)) {
+          title = line;
+          titleFound = true;
+        }
       }
     }
 
-    if (!title || options.filter(Boolean).length < 2 || answer.length === 0) return null;
+    // 后处理：合并多行题目
+    // 如果没找到题目或没找到选项或没找到答案，返回 null
+    if (!title || title.length < 3) return null;
+    const validOptions = options.filter(Boolean);
+    if (validOptions.length < 2) return null;
+    if (answer.length === 0) return null;
+
+    // 清理题目结尾的标点
+    title = title.replace(/[.。，,；;]+$/, '').trim();
+
     return {
       title,
-      options: options.filter(Boolean),
+      options: validOptions,
       answer,
       type,
       difficulty,
@@ -283,7 +345,7 @@ export default function Admin() {
   };
 
   const handleImport = async () => {
-    if (!importText.trim() && !importFile) { showMsg('请粘贴或上传题目数据', true); return; }
+    if (!importText.trim() && !importFile) { showMsg('请粘贴或上传题目数据'); return; }
     try {
       let raw = importText;
       if (importFile) {
@@ -293,7 +355,7 @@ export default function Admin() {
       const { questions, errors, format } = parseImportData(raw);
 
       if (questions.length === 0) {
-        showMsg('❌ 没有识别到有效题目。请确保格式正确', true);
+        showMsg(`❌ 没有识别到有效题目。请参考页面上的格式说明`);
         return;
       }
 
@@ -318,12 +380,12 @@ export default function Admin() {
       setImportText('');
       setImportFile(null);
       const aq = await getAdminQuestions(); setAdminQuestions(aq);
-    } catch (e) { showMsg('❌ 导入失败: ' + e.message, true); }
+    } catch (e) { showMsg('❌ 导入失败: ' + e.message); }
   };
 
   // === Categories ===
   const handleSaveCat = async () => {
-    if (!catForm.name.trim() || !catForm.slug.trim()) { showMsg('名称和标识不能为空', true); return; }
+    if (!catForm.name.trim() || !catForm.slug.trim()) { showMsg('名称和标识不能为空'); return; }
     try {
       if (catForm.editing) {
         await updateAdminCategory(catForm.editing, { name: catForm.name, slug: catForm.slug, icon: catForm.icon, description: catForm.description, display_order: catForm.display_order });
@@ -333,7 +395,7 @@ export default function Admin() {
       setCatForm(null);
       const ac = await getAdminCategories(); setAdminCategories(ac);
       showMsg('✅ 分类已保存');
-    } catch (e) { showMsg('❌ ' + e.message, true); }
+    } catch (e) { showMsg('❌ ' + e.message); }
   };
 
   const handleDeleteCat = async (id) => {
@@ -342,10 +404,9 @@ export default function Admin() {
       await deleteAdminCategory(id);
       setAdminCategories(prev => prev.filter(c => c.id !== id));
       showMsg('✅ 已删除');
-    } catch (e) { showMsg('❌ ' + e.message, true); }
+    } catch (e) { showMsg('❌ ' + e.message); }
   };
 
-  // 数据
   const allCategories = adminCategories.length > 0 ? adminCategories : staticCategories;
 
   if (checking) return <div className="questions-page"><div className="empty-state"><span className="empty-icon">⏳</span><p className="empty-text">验证权限...</p></div></div>;
@@ -443,7 +504,15 @@ export default function Admin() {
 【JSON 格式】每行一个 JSON：
 {"title":"题目","options":["A","B","C","D"],"answer":[0],"type":"single","difficulty":1,"explanation":"解析"}
 
-【Word/TXT 格式】：
+【Word/TXT 格式】（支持多种风格）：
+1. 题目内容
+A. 选项A
+B. 选项B
+C. 选项C
+D. 选项D
+答案：A
+
+或：
 题目：HTML 是什么的缩写？
 A. 超文本标记语言
 B. 编程语言
@@ -452,18 +521,20 @@ D. 脚本语言
 答案：A
 解析：HTML 是 HyperText Markup Language
 难度：1
-题型：单选`} style={{ width: '100%', minHeight: 220, padding: 10, borderRadius: 6, border: '1px solid #d1d5db', marginBottom: 8, fontSize: 12, fontFamily: 'monospace' }} />
+题型：单选`} style={{ width: '100%', minHeight: 240, padding: 10, borderRadius: 6, border: '1px solid #d1d5db', marginBottom: 8, fontSize: 12, fontFamily: 'monospace' }} />
                   <details style={{ marginBottom: 8, fontSize: 12, color: '#6b7280' }}>
-                    <summary style={{ cursor: 'pointer', userSelect: 'none' }}>📖 查看 Word/TXT 格式说明</summary>
+                    <summary style={{ cursor: 'pointer', userSelect: 'none' }}>📖 查看 Word/TXT 格式说明（点开看详细）</summary>
                     <div style={{ marginTop: 8, padding: 10, background: '#f9fafb', borderRadius: 6, lineHeight: 1.7 }}>
-                      每道题之间用 <b>空行</b> 或 <b>===</b> 分隔<br />
-                      支持的标记（都可以不写，会自动识别）：<br />
-                      &nbsp;&nbsp;• <code>题目：xxx</code> - 题目标题（第一行也可）<br />
-                      &nbsp;&nbsp;• <code>A. xxx</code> 或 <code>A、xxx</code> 或 <code>A) xxx</code> - 选项<br />
-                      &nbsp;&nbsp;• <code>答案：A</code> 或 <code>答案：AB</code>（多选用逗号或无分隔）<br />
+                      <b>📌 智能识别规则：</b><br />
+                      • 每道题之间用 <b>空行</b> 或 <b>===</b> 或 <b>---</b> 分隔<br />
+                      • 题号自动去除（1. / 2. / (3) / ① 等）<br /><br />
+                      <b>支持的可选标记（都可省略）：</b><br />
+                      &nbsp;&nbsp;• <code>题目：xxx</code> - 题目标题<br />
+                      &nbsp;&nbsp;• <code>A. xxx</code> 或 <code>A、xxx</code> 或 <code>A) xxx</code> 或 <code>A:xxx</code> - 选项<br />
+                      &nbsp;&nbsp;• <code>答案：A</code> 或 <code>答案：AB</code> 或 <code>答案：A,B</code> 或 <code>答案：A和B</code><br />
                       &nbsp;&nbsp;• <code>解析：xxx</code> - 可选<br />
                       &nbsp;&nbsp;• <code>难度：1-5</code> - 可选<br />
-                      &nbsp;&nbsp;• <code>题型：单选/多选/判断</code> - 可选
+                      &nbsp;&nbsp;• <code>题型：单选/多选</code> - 自动识别<br />
                     </div>
                   </details>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -616,7 +687,6 @@ D. 脚本语言
               {users.length === 0 ? <p style={{ color: '#9ca3af', textAlign: 'center', padding: 24 }}>暂无</p> : (
                 <>
                 <div style={{ display: window.innerWidth < 768 ? 'block' : 'none' }}>
-                  {/* 手机端卡片视图 */}
                   {users.map(u => {
                     const isMe = u.id === user?.id;
                     const accuracy = u.total_questions > 0 ? Math.round((u.correct_answers / u.total_questions) * 100) : null;
@@ -639,22 +709,13 @@ D. 脚本语言
                           </div>
                           <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                             {!u.is_admin && (
-                              <button onClick={() => handleSetAdmin(u.id, true, u.nickname)} style={{
-                                padding: '4px 10px', fontSize: 12, background: '#fffbeb', color: '#f59e0b',
-                                border: '1px solid #fde68a', borderRadius: 6, cursor: 'pointer',
-                              }}>设管理</button>
+                              <button onClick={() => handleSetAdmin(u.id, true, u.nickname)} style={{ padding: '4px 10px', fontSize: 12, background: '#fffbeb', color: '#f59e0b', border: '1px solid #fde68a', borderRadius: 6, cursor: 'pointer' }}>设管理</button>
                             )}
                             {u.is_admin && !isMe && (
-                              <button onClick={() => handleSetAdmin(u.id, false, u.nickname)} style={{
-                                padding: '4px 10px', fontSize: 12, background: '#f3f4f6', color: '#6b7280',
-                                border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer',
-                              }}>取消</button>
+                              <button onClick={() => handleSetAdmin(u.id, false, u.nickname)} style={{ padding: '4px 10px', fontSize: 12, background: '#f3f4f6', color: '#6b7280', border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer' }}>取消</button>
                             )}
                             {u.id !== user?.id && (
-                              <button onClick={() => handleDeleteUser(u.id, u.nickname)} style={{
-                                padding: '4px 10px', fontSize: 12, background: '#fef2f2', color: '#ef4444',
-                                border: '1px solid #fecaca', borderRadius: 6, cursor: 'pointer',
-                              }}>删除</button>
+                              <button onClick={() => handleDeleteUser(u.id, u.nickname)} style={{ padding: '4px 10px', fontSize: 12, background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', borderRadius: 6, cursor: 'pointer' }}>删除</button>
                             )}
                           </div>
                         </div>
@@ -664,7 +725,6 @@ D. 脚本语言
                 </div>
 
                 <div style={{ display: window.innerWidth >= 768 ? 'block' : 'none', overflowX: 'auto' }}>
-                  {/* 电脑端表格视图 */}
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead><tr style={{ borderBottom: '2px solid #e5e7eb' }}>
                       <th style={{ padding: '10px 8px', textAlign: 'left', color: '#6b7280', fontWeight: 600 }}>昵称</th>
@@ -693,22 +753,13 @@ D. 脚本语言
                             <td style={{ padding: '10px 8px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
                                 {!u.is_admin && (
-                                  <button onClick={() => handleSetAdmin(u.id, true, u.nickname)} style={{
-                                    padding: '3px 8px', fontSize: 11, background: '#fffbeb', color: '#f59e0b',
-                                    border: '1px solid #fde68a', borderRadius: 4, cursor: 'pointer',
-                                  }}>设管理</button>
+                                  <button onClick={() => handleSetAdmin(u.id, true, u.nickname)} style={{ padding: '3px 8px', fontSize: 11, background: '#fffbeb', color: '#f59e0b', border: '1px solid #fde68a', borderRadius: 4, cursor: 'pointer' }}>设管理</button>
                                 )}
                                 {u.is_admin && !isMe && (
-                                  <button onClick={() => handleSetAdmin(u.id, false, u.nickname)} style={{
-                                    padding: '3px 8px', fontSize: 11, background: '#f3f4f6', color: '#6b7280',
-                                    border: '1px solid #e5e7eb', borderRadius: 4, cursor: 'pointer',
-                                  }}>取消</button>
+                                  <button onClick={() => handleSetAdmin(u.id, false, u.nickname)} style={{ padding: '3px 8px', fontSize: 11, background: '#f3f4f6', color: '#6b7280', border: '1px solid #e5e7eb', borderRadius: 4, cursor: 'pointer' }}>取消</button>
                                 )}
                                 {u.id !== user?.id && (
-                                  <button onClick={() => handleDeleteUser(u.id, u.nickname)} style={{
-                                    padding: '3px 8px', fontSize: 11, background: '#fef2f2', color: '#ef4444',
-                                    border: '1px solid #fecaca', borderRadius: 4, cursor: 'pointer',
-                                  }}>删除</button>
+                                  <button onClick={() => handleDeleteUser(u.id, u.nickname)} style={{ padding: '3px 8px', fontSize: 11, background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', borderRadius: 4, cursor: 'pointer' }}>删除</button>
                                 )}
                               </div>
                             </td>

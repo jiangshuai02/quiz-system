@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { questions, categories, difficultyLabels, difficultyText } from '../data/questions';
 import { useAuth } from '../contexts/AuthContext';
@@ -37,6 +37,8 @@ export default function Practice() {
 
   const [questionOrder, setQuestionOrder] = useState(() => questions.map((_, i) => i));
   const [optionShuffleEnabled, setOptionShuffleEnabled] = useState(false);
+  const [autoNextOnCorrect, setAutoNextOnCorrect] = useState(false);
+  const [showAnswerSheet, setShowAnswerSheet] = useState(false);
 
   const baseQuestionList = useMemo(() => {
     return questionOrder.map(i => questions[i]);
@@ -61,21 +63,24 @@ export default function Practice() {
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [answerHistory, setAnswerHistory] = useState({});
+  const autoNextTimer = useRef(null);
 
   useEffect(() => {
     setSelectedOptions([]);
     setShowResult(false);
     setIsCorrect(false);
+    if (autoNextTimer.current) {
+      clearTimeout(autoNextTimer.current);
+      autoNextTimer.current = null;
+    }
   }, [currentIndex]);
 
   useEffect(() => {
-    if (questionId && currentIndex === 0) {
-      const idx = questions.findIndex(q => q.id === parseInt(questionId));
-      if (idx >= 0) setCurrentIndex(idx);
-    }
-  }, [questionId, currentIndex]);
+    return () => {
+      if (autoNextTimer.current) clearTimeout(autoNextTimer.current);
+    };
+  }, []);
 
-  // 计算结果（不调用 handleSubmit，直接在这里处理）
   const computeResult = (selected) => {
     if (!currentQuestion || selected.length === 0) return null;
     return currentQuestion.type === 'single'
@@ -83,7 +88,6 @@ export default function Practice() {
       : JSON.stringify([...selected].sort()) === JSON.stringify([...currentQuestion.answer].sort());
   };
 
-  // 同步到云端（独立函数）
   const syncToCloud = async (selected, correct) => {
     if (!user) return;
     try {
@@ -97,11 +101,15 @@ export default function Practice() {
     }
   };
 
-  // 实时判错：单选题点击即判错，多选题需要一个"提交"按钮
+  const goNext = () => {
+    if (currentIndex < baseQuestionList.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+    }
+  };
+
   const handleOptionClick = (optIndex) => {
     if (showResult) return;
     if (currentQuestion.type === 'single') {
-      // 单选题：点击即提交
       const sel = [optIndex];
       const correct = computeResult(sel);
       setSelectedOptions(sel);
@@ -109,8 +117,12 @@ export default function Practice() {
       setShowResult(true);
       setAnswerHistory(prev => ({ ...prev, [currentQuestion.id]: { selected: sel, isCorrect: correct } }));
       syncToCloud(sel, correct);
+      // 答对且开启了自动跳转
+      if (correct && autoNextOnCorrect && currentIndex < baseQuestionList.length - 1) {
+        if (autoNextTimer.current) clearTimeout(autoNextTimer.current);
+        autoNextTimer.current = setTimeout(() => goNext(), 1200);
+      }
     } else {
-      // 多选题：切换选择，不立即提交
       setSelectedOptions(prev =>
         prev.includes(optIndex)
           ? prev.filter(i => i !== optIndex)
@@ -119,7 +131,6 @@ export default function Practice() {
     }
   };
 
-  // 多选题的"提交"按钮
   const handleSubmitMultiple = () => {
     if (selectedOptions.length === 0) return;
     const correct = computeResult(selectedOptions);
@@ -127,14 +138,14 @@ export default function Practice() {
     setShowResult(true);
     setAnswerHistory(prev => ({ ...prev, [currentQuestion.id]: { selected: selectedOptions, isCorrect: correct } }));
     syncToCloud(selectedOptions, correct);
+    if (correct && autoNextOnCorrect && currentIndex < baseQuestionList.length - 1) {
+      if (autoNextTimer.current) clearTimeout(autoNextTimer.current);
+      autoNextTimer.current = setTimeout(() => goNext(), 1200);
+    }
   };
 
-  const handleNext = () => {
-    if (currentIndex < baseQuestionList.length - 1) setCurrentIndex(currentIndex + 1);
-  };
-  const handlePrev = () => {
-    if (currentIndex > 0) setCurrentIndex(currentIndex - 1);
-  };
+  const handleNext = () => goNext();
+  const handlePrev = () => { if (currentIndex > 0) setCurrentIndex(currentIndex - 1); };
 
   const handleShuffleQuestions = () => {
     const shuffled = shuffle(questions.map((_, i) => i));
@@ -176,6 +187,45 @@ export default function Practice() {
   const correctCount = Object.values(answerHistory).filter(a => a.isCorrect).length;
   const isMultiple = currentQuestion.type === 'multiple';
 
+  // 答题卡内容（复用）
+  const answerSheetContent = (
+    <>
+      <div className="answer-sheet-title" style={{ fontSize: 12, marginBottom: 8, color: '#6b7280', fontWeight: 600 }}>
+        📋 答题卡（{answeredCount}/{baseQuestionList.length}）
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4 }}>
+        {baseQuestionList.map((q, idx) => {
+          const ans = answerHistory[q.id];
+          let btnClass = 'answer-sheet-btn';
+          if (idx === currentIndex) btnClass += ' active';
+          else if (ans) btnClass += ans.isCorrect ? ' answered-correct' : ' answered-wrong';
+          return (
+            <button
+              key={q.id}
+              className={btnClass}
+              onClick={() => { setCurrentIndex(idx); setShowAnswerSheet(false); }}
+              title={`第 ${idx + 1} 题`}
+              style={{ width: 28, height: 28, fontSize: 12, padding: 0 }}
+            >
+              {idx + 1}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ fontSize: 10, marginTop: 10, display: 'flex', flexDirection: 'column', gap: 3, color: '#9ca3af' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 2, background: '#4f46e5' }} /> 当前
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 2, background: '#10b981' }} /> 正确
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 2, background: '#ef4444' }} /> 错误
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div className="practice-page" style={{ position: 'relative' }}>
       <div className="practice-header">
@@ -188,50 +238,42 @@ export default function Practice() {
               style={{ width: `${((currentIndex + 1) / baseQuestionList.length) * 100}%` }} />
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 13, color: 'var(--gray-500)' }}>
+        <div className="practice-header-tools">
+          <span className="practice-stat">
             ✅ 已答 {answeredCount} · 正确 {correctCount}
           </span>
-          <button onClick={handleShuffleQuestions}
-            style={{
-              padding: '6px 12px', fontSize: 13, fontWeight: 500,
-              background: 'white', color: '#374151',
-              border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 4,
-            }}>🔀 题目乱序</button>
+          <label className="practice-tool-toggle" title="答对后自动跳转下一题">
+            <input type="checkbox" checked={autoNextOnCorrect}
+              onChange={e => setAutoNextOnCorrect(e.target.checked)} />
+            <span className="practice-tool-toggle-dot" />
+            <span className="practice-tool-toggle-label">⚡ 答对自动跳转</span>
+          </label>
+          <button onClick={handleShuffleQuestions} className="practice-tool-btn">🔀 题目乱序</button>
           <button onClick={handleShuffleOptions}
-            style={{
-              padding: '6px 12px', fontSize: 13, fontWeight: 500,
-              background: optionShuffleEnabled ? '#eef2ff' : 'white',
-              color: optionShuffleEnabled ? '#4f46e5' : '#374151',
-              border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 4,
-            }}>🎲 选项乱序</button>
+            className={`practice-tool-btn ${optionShuffleEnabled ? 'active' : ''}`}>🎲 选项乱序</button>
           <button className="btn-nav" onClick={() => navigate('/questions')}>
-            ← 返回题库
+            ← <span className="hide-mobile">返回</span>
           </button>
         </div>
       </div>
 
-      <div style={{ paddingRight: 0 }}>
+      <div className="practice-body">
         <div className="practice-card">
           <div className="question-number">
             第 {currentIndex + 1} 题 / 共 {baseQuestionList.length} 题
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
+          <div className="question-tags-row">
             <span className={`tag ${getDifficultyTagClass(currentQuestion.difficulty)}`}>
               {difficultyLabels[currentQuestion.difficulty]} {difficultyText[currentQuestion.difficulty]}
             </span>
             <span className="tag tag-category">
               {categories.find(c => c.id === currentQuestion.category)?.icon} {categories.find(c => c.id === currentQuestion.category)?.name}
             </span>
-            <span style={{ fontSize: 11, color: isMultiple ? '#8b5cf6' : '#3b82f6', background: isMultiple ? '#f3e8ff' : '#dbeafe', padding: '2px 8px', borderRadius: 8 }}>
-              {isMultiple ? '📝 多选题' : '⚡ 单选题（点击即判）'}
+            <span className={`practice-mode-tag ${isMultiple ? 'multiple' : 'single'}`}>
+              {isMultiple ? '📝 多选题' : '⚡ 单选题'}
             </span>
             {optionShuffleEnabled && (
-              <span style={{ fontSize: 11, color: '#8b5cf6', background: '#f3e8ff', padding: '2px 8px', borderRadius: 8 }}>
-                🎲 选项已乱序
-              </span>
+              <span className="practice-mode-tag shuffle">🎲 选项已乱序</span>
             )}
           </div>
           <div className="question-text">{currentQuestion.title}</div>
@@ -268,11 +310,16 @@ export default function Practice() {
               </button>
             )}
             <button className="btn-nav" onClick={handlePrev} disabled={currentIndex === 0}>
-              ← 上一题
+              ← <span className="hide-mobile">上一题</span>
             </button>
             <button className="btn-nav" onClick={handleNext}
               disabled={currentIndex === baseQuestionList.length - 1}>
-              下一题 →
+              <span className="hide-mobile">下一题</span> →
+            </button>
+            {/* 手机端显示"答题卡"按钮 */}
+            <button className="btn-nav show-mobile-only"
+              onClick={() => setShowAnswerSheet(s => !s)}>
+              📋 答题卡
             </button>
           </div>
 
@@ -284,6 +331,9 @@ export default function Practice() {
                 marginBottom: 12
               }}>
                 {isCorrect ? '🎉 回答正确！' : '😅 回答错误'}
+                {isCorrect && autoNextOnCorrect && currentIndex < baseQuestionList.length - 1 && (
+                  <span style={{ fontSize: 12, marginLeft: 12, color: '#9ca3af', fontWeight: 400 }}>1.2秒后自动跳转...</span>
+                )}
               </div>
               <div className="explanation-title">📖 答案解析</div>
               <div className="explanation-text">{currentQuestion.explanation}</div>
@@ -295,56 +345,21 @@ export default function Practice() {
             </div>
           )}
         </div>
+
+        {/* 桌面端答题卡（侧边栏） */}
+        <div className="answer-sheet answer-sheet-desktop">
+          {answerSheetContent}
+        </div>
       </div>
 
-      <div className="answer-sheet" style={{
-        position: 'fixed',
-        right: 20,
-        top: 84,
-        width: 180,
-        zIndex: 100,
-        padding: 12,
-        maxHeight: 'calc(100vh - 110px)',
-        overflowY: 'auto',
-        background: 'white',
-        borderRadius: 12,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-        border: '1px solid #e5e7eb',
-      }}>
-        <div className="answer-sheet-title" style={{ fontSize: 12, marginBottom: 8, color: '#6b7280', fontWeight: 600 }}>
-          📋 答题卡
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4 }}>
-          {baseQuestionList.map((q, idx) => {
-            const ans = answerHistory[q.id];
-            let btnClass = 'answer-sheet-btn';
-            if (idx === currentIndex) btnClass += ' active';
-            else if (ans) btnClass += ans.isCorrect ? ' answered-correct' : ' answered-wrong';
-            return (
-              <button
-                key={q.id}
-                className={btnClass}
-                onClick={() => setCurrentIndex(idx)}
-                title={`第 ${idx + 1} 题`}
-                style={{ width: 28, height: 28, fontSize: 12, padding: 0 }}
-              >
-                {idx + 1}
-              </button>
-            );
-          })}
-        </div>
-        <div style={{ fontSize: 10, marginTop: 10, display: 'flex', flexDirection: 'column', gap: 3, color: '#9ca3af' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 8, height: 8, borderRadius: 2, background: '#4f46e5' }} /> 当前
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 8, height: 8, borderRadius: 2, background: '#10b981' }} /> 正确
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 8, height: 8, borderRadius: 2, background: '#ef4444' }} /> 错误
+      {/* 手机端答题卡（底部弹出） */}
+      {showAnswerSheet && (
+        <div className="answer-sheet-mobile-overlay" onClick={() => setShowAnswerSheet(false)}>
+          <div className="answer-sheet answer-sheet-mobile" onClick={e => e.stopPropagation()}>
+            {answerSheetContent}
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

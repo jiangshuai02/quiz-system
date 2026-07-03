@@ -58,11 +58,11 @@ function App() {
     <div className="app-layout">
       <nav className="navbar">
         <div className="navbar-inner">
-          <Link to="/" className="navbar-logo" style={{ gap: 6 }}>
+          <Link to="/" className="navbar-logo" style={{ gap: 6, flexShrink: 0 }}>
             <span style={{ fontSize: 22 }}>📚</span>
-            <span style={{ fontSize: 16 }}>{siteTitle}</span>
+            <span className="navbar-logo-text" style={{ fontSize: 16 }}>{siteTitle}</span>
           </Link>
-          <div className="navbar-links" style={{ gap: 2 }}>
+          <div className="navbar-links">
             <Link to="/" className={`navbar-link ${isActive('/')}`}>首页</Link>
             <Link to="/questions" className={`navbar-link ${isActive('/questions')}`}>题库</Link>
             <Link to="/exam" className={`navbar-link ${isActive('/exam')}`}>考试</Link>
@@ -75,13 +75,12 @@ function App() {
                 管理
               </Link>
             )}
-            <div style={{ marginLeft: 8, paddingLeft: 8, borderLeft: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 13, color: '#6b7280', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div className="navbar-user">
+              <span className="navbar-user-name">
                 👤 {profile?.nickname || user?.email?.split('@')[0]}
-                {isAdmin && <span style={{ marginLeft: 4, fontSize: 10, background: 'linear-gradient(135deg, #f59e0b, #ef4444)', color: 'white', padding: '1px 6px', borderRadius: 8, fontWeight: 600 }}>👑管理</span>}
+                {isAdmin && <span className="navbar-user-admin">👑管理</span>}
               </span>
-              <button onClick={async () => { try { await signOut(); navigate('/auth'); } catch {} }}
-                style={{ padding: '4px 10px', background: 'transparent', color: '#9ca3af', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>
+              <button className="navbar-logout" onClick={async () => { try { await signOut(); navigate('/auth'); } catch {} }}>
                 退出
               </button>
             </div>

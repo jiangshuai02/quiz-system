@@ -52,6 +52,16 @@ export default function Questions() {
     return 'tag-difficulty-hard';
   };
 
+  // 点击科目 → 直接进入刷题（进入该科目的第一题）
+  const handleCategoryClick = (catId) => {
+    setSelectedCategory(catId);
+    // 找到该科目第一道题的 ID
+    const firstQ = getQuestionsByCategory(catId)[0];
+    if (firstQ) {
+      navigate(`/practice/${firstQ.id}`);
+    }
+  };
+
   return (
     <div className="questions-page">
       <div className="page-header">
@@ -81,19 +91,42 @@ export default function Questions() {
       </div>
 
       <div className="filter-bar">
-        <button className={`filter-btn ${selectedCategory === 'all' ? 'active' : ''}`} onClick={() => setSelectedCategory('all')}>
+        <button className={`filter-btn ${selectedCategory === 'all' ? 'active' : ''}`}
+          onClick={() => setSelectedCategory('all')}>
           全部
         </button>
         {categories.map(cat => (
           <button key={cat.id} className={`filter-btn ${selectedCategory === cat.id ? 'active' : ''}`}
-            onClick={() => setSelectedCategory(cat.id)}>
+            onClick={() => handleCategoryClick(cat.id)}
+            title={`点击直接刷 ${cat.name} 题`}>
             {cat.icon} {cat.name}
           </button>
         ))}
       </div>
 
+      {/* 新增：按知识点刷题快捷栏 */}
+      <div className="quick-practice-bar">
+        <div className="quick-practice-title">
+          <span className="quick-practice-icon">🏷️</span>
+          <span>按知识点刷题</span>
+          <span className="quick-practice-hint">点击直接进入刷题</span>
+        </div>
+        <div className="quick-practice-grid">
+          {categories.map(cat => (
+            <button key={cat.id} className="quick-practice-btn"
+              onClick={() => handleCategoryClick(cat.id)}
+              title={`直接刷 ${cat.name} 题`}>
+              <span className="quick-practice-emoji">{cat.icon}</span>
+              <span className="quick-practice-name">{cat.name}</span>
+              <span className="quick-practice-count">{getQuestionsByCategory(cat.id).length}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="filter-bar">
-        <button className={`filter-btn ${selectedDifficulty === 'all' ? 'active' : ''}`} onClick={() => setSelectedDifficulty('all')}>
+        <button className={`filter-btn ${selectedDifficulty === 'all' ? 'active' : ''}`}
+          onClick={() => setSelectedDifficulty('all')}>
           全部难度
         </button>
         {[1, 2, 3, 4, 5].map(level => (
@@ -115,7 +148,9 @@ export default function Questions() {
           {filteredQuestions.map(q => (
             <div key={q.id} className="question-item" onClick={() => navigate(`/practice/${q.id}`)}>
               <div className="question-item-left">
-                <div className="question-item-title">{q.title.length > 50 ? q.title.slice(0, 50) + '...' : q.title}</div>
+                <div className="question-item-title">
+                  {q.title.length > 50 ? q.title.slice(0, 50) + '...' : q.title}
+                </div>
                 <div className="question-item-tags">
                   <span className={`tag ${getDifficultyTagClass(q.difficulty)}`}>
                     {difficultyLabels[q.difficulty]} {difficultyText[q.difficulty]}

@@ -398,12 +398,25 @@ export default function Admin() {
     } catch (e) { showMsg('❌ ' + e.message); }
   };
 
-  const handleDeleteCat = async (id) => {
-    if (!confirm('删除分类？该分类下的题目不会被删除,只是不再显示。')) return;
+  const handleDeleteCat = async (id, name) => {
+    // 先统计该分类下有多少题
+    const { count } = await supabase
+      .from('admin_questions')
+      .select('*', { count: 'exact', head: true })
+      .eq('category', id);
+
+    if (!confirm(`确定删除分类「${name}」？\n\n该分类下有 ${count || 0} 道题目，会一起删除！\n\n此操作不可恢复！`)) return;
     try {
+      // 先删除该分类下所有题目
+      if (count > 0) {
+        await supabase.from('admin_questions').delete().eq('category', id);
+      }
+      // 再删除分类
       await deleteAdminCategory(id);
       setAdminCategories(prev => prev.filter(c => c.id !== id));
-      showMsg('✅ 已删除');
+      // 重新加载题库
+      const aq = await getAdminQuestions(); setAdminQuestions(aq);
+      showMsg(`✅ 已删除分类和 ${count || 0} 道题目`);
     } catch (e) { showMsg('❌ ' + e.message); }
   };
 
@@ -672,7 +685,7 @@ D. 脚本语言
                       </div>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button className="btn-nav" style={{ padding: '4px 12px', fontSize: 12 }} onClick={() => setCatForm({ editing: c.id, slug: c.slug, name: c.name, icon: c.icon, description: c.description || '', display_order: c.display_order || 0 })}>编辑</button>
-                        <button className="btn-nav" style={{ padding: '4px 12px', fontSize: 12, color: '#ef4444', borderColor: '#ef4444' }} onClick={() => handleDeleteCat(c.id)}>删除</button>
+                        <button className="btn-nav" style={{ padding: '4px 12px', fontSize: 12, color: '#ef4444', borderColor: '#ef4444' }} onClick={() => handleDeleteCat(c.id, c.name)}>删除</button>
                       </div>
                     </div>
                   ))

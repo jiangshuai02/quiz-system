@@ -49,6 +49,8 @@ export default function Admin() {
   const [importVisible, setImportVisible] = useState(false);
   const [importText, setImportText] = useState('');
   const [importCat, setImportCat] = useState('javascript');
+  const [importFormat, setImportFormat] = useState('auto'); // auto | json | word
+  const [importFile, setImportFile] = useState(null);
   const [catForm, setCatForm] = useState(null);
 
   useEffect(() => {
@@ -174,20 +176,101 @@ export default function Admin() {
   };
 
   // 批量导入
+  // 智能解析多种格式（JSON、Word/TXT、纯文本）
+  const parseImportData = (raw) => {
+    const results = [];
+    const errors = [];
+
+    // 1. 尝试每行 JSON
+    const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+    for (const line of lines) {
+      if (!line) continue;
+      if (line.startsWith('{') && line.endsWith('}')) {
+        try { results.push(JSON.parse(line)); continue; } catch {}
+      }
+    }
+    if (results.length > 0) return { questions: results, format: 'JSON' };
+
+    // 2. 解析 Word/TXT 格式: 题目? A.x B.x C.x D.x 答案:X 解析:...
+    const blocks = raw.split(/\n{2,}|={3,}/);
+    for (const block of blocks) {
+      const q = parseBlock(block);
+      if (q) results.push(q); else if (block.trim().length > 20) errors.push(block.slice(0, 50));
+    }
+    return { questions: results, errors, format: 'Word/TXT' };
+  };
+
+  const parseBlock = (block) => {
+    const lines = block.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+    if (lines.length < 3) return null;
+
+    let title = '', difficulty = 1, type = 'single';
+    const options = [];
+    let answer = [], explanation = '';
+
+    for (const line of lines) {
+      // 难度识别
+      if (/^难度[::]?\s*[1-5]/.test(line)) { difficulty = parseInt(line.match(/[1-5]/)[0]); continue; }
+      // 题型识别
+      if (/^(题型|类型)[::]?\s*(单选|多选|判断)/.test(line)) {
+        if (/多选/.test(line)) type = 'multiple';
+        else if (/判断/.test(line)) type = 'single';
+        else type = 'single';
+        continue;
+      }
+      // 答案识别
+      const ansMatch = line.match(/^答案[::]?\s*(.+)$/);
+      if (ansMatch) {
+        const ansStr = ansMatch[1].trim();
+        const letters = ansStr.match(/[A-Fa-f]/g) || [];
+        answer = letters.map(l => l.toUpperCase().charCodeAt(0) - 65);
+        if (answer.length > 1) type = 'multiple';
+        continue;
+      }
+      // 解析识别
+      const expMatch = line.match(/^(解析|说明|解释)[::]?\s*(.+)$/);
+      if (expMatch) { explanation = expMatch[2].trim(); continue; }
+      // 选项识别
+      const optMatch = line.match(/^([A-F])[.、,．)]\s*(.+)$/);
+      if (optMatch) {
+        const idx = optMatch[1].charCodeAt(0) - 65;
+        options[idx] = optMatch[2].trim();
+        continue;
+      }
+      // 题目
+      if (!title && !line.startsWith('题目') && !line.match(/^[A-F][.、]/)) {
+        title = line.replace(/^题目[::]?\s*/, '').trim();
+      } else if (line.startsWith('题目')) {
+        title = line.replace(/^题目[::]?\s*/, '').trim();
+      }
+    }
+
+    if (!title || options.filter(Boolean).length < 2 || answer.length === 0) return null;
+    return {
+      title,
+      options: options.filter(Boolean),
+      answer,
+      type,
+      difficulty,
+      explanation,
+    };
+  };
+
   const handleImport = async () => {
-    if (!importText.trim()) { showMsg('请粘贴题目数据', true); return; }
+    if (!importText.trim() && !importFile) { showMsg('请粘贴或上传题目数据', true); return; }
     try {
-      const lines = importText.split('\n').filter(l => l.trim());
-      const questions = lines.map(line => {
-        try { return JSON.parse(line); } catch { return null; }
-      }).filter(Boolean);
+      let raw = importText;
+      if (importFile) {
+        raw = await importFile.text();
+      }
+
+      const { questions, errors, format } = parseImportData(raw);
 
       if (questions.length === 0) {
-        showMsg('❌ 没有有效的题目数据,每行必须是 JSON 格式', true);
+        showMsg('❌ 没有识别到有效题目。请确保格式正确', true);
         return;
       }
 
-      // 验证 + 写入
       const records = questions.map(q => ({
         category: q.category || importCat,
         difficulty: q.difficulty || 1,
@@ -202,9 +285,12 @@ export default function Admin() {
       const { error } = await supabase.from('admin_questions').insert(records);
       if (error) throw error;
 
-      showMsg(`✅ 成功导入 ${records.length} 道题目`);
+      let msg = `✅ 成功导入 ${records.length} 道题目（${format}格式）`;
+      if (errors.length > 0) msg += `，${errors.length} 条无法识别`;
+      showMsg(msg);
       setImportVisible(false);
       setImportText('');
+      setImportFile(null);
       const aq = await getAdminQuestions(); setAdminQuestions(aq);
     } catch (e) { showMsg('❌ 导入失败: ' + e.message, true); }
   };
@@ -309,23 +395,54 @@ export default function Admin() {
 
               {importVisible && (
                 <div style={{ ...sectionStyle, marginBottom: 16 }}>
-                  <h4 style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>📤 批量导入题目</h4>
+                  <h4 style={{ fontWeight: 600, marginBottom: 8, fontSize: 14 }}>📤 批量导入题目（支持 Word / TXT / JSON）</h4>
                   <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 8 }}>
-                    每行一道 JSON 题目,字段: title, options, answer, type, difficulty, category, explanation
+                    支持 <b>每行 JSON</b> 或 <b>Word/TXT 文本格式</b>（自动识别题型、答案、解析）
                   </div>
-                  <div style={{ marginBottom: 8 }}>
-                    <span style={{ fontSize: 13, marginRight: 8 }}>默认分类:</span>
-                    <select value={importCat} onChange={e => setImportCat(e.target.value)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db' }}>
-                      {allCategories.map(c => <option key={c.id || c.slug} value={c.id || c.slug}>{c.icon} {c.name}</option>)}
-                    </select>
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
+                    <div>
+                      <span style={{ fontSize: 13, marginRight: 8 }}>默认分类:</span>
+                      <select value={importCat} onChange={e => setImportCat(e.target.value)} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #d1d5db' }}>
+                        {allCategories.map(c => <option key={c.id || c.slug} value={c.id || c.slug}>{c.icon} {c.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: 13, marginRight: 8 }}>或上传文件:</span>
+                      <input type="file" accept=".txt,.json,.md,.doc,.docx" onChange={e => { const f = e.target.files?.[0]; if (f) setImportFile(f); }} style={{ fontSize: 13 }} />
+                      {importFile && <span style={{ marginLeft: 8, fontSize: 12, color: '#10b981' }}>✓ {importFile.name}</span>}
+                    </div>
                   </div>
-                  <textarea value={importText} onChange={e => setImportText(e.target.value)} placeholder={`{"title":"题目内容","options":["A选项","B选项","C选项","D选项"],"answer":[0],"type":"single","difficulty":1,"explanation":"解析"}`} style={{ width: '100%', minHeight: 200, padding: 10, borderRadius: 6, border: '1px solid #d1d5db', marginBottom: 8, fontSize: 13, fontFamily: 'monospace' }} />
-                  <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>
-                    💡 示例: 每行一个 JSON 对象,格式: {'{title, options, answer, type, difficulty, explanation}'}
-                  </div>
+                  <textarea value={importText} onChange={e => setImportText(e.target.value)} placeholder={`两种格式任选其一:
+
+【JSON 格式】每行一个 JSON：
+{"title":"题目","options":["A","B","C","D"],"answer":[0],"type":"single","difficulty":1,"explanation":"解析"}
+
+【Word/TXT 格式】：
+题目：HTML 是什么的缩写？
+A. 超文本标记语言
+B. 编程语言
+C. 样式表语言
+D. 脚本语言
+答案：A
+解析：HTML 是 HyperText Markup Language
+难度：1
+题型：单选`} style={{ width: '100%', minHeight: 220, padding: 10, borderRadius: 6, border: '1px solid #d1d5db', marginBottom: 8, fontSize: 12, fontFamily: 'monospace' }} />
+                  <details style={{ marginBottom: 8, fontSize: 12, color: '#6b7280' }}>
+                    <summary style={{ cursor: 'pointer', userSelect: 'none' }}>📖 查看 Word/TXT 格式说明</summary>
+                    <div style={{ marginTop: 8, padding: 10, background: '#f9fafb', borderRadius: 6, lineHeight: 1.7 }}>
+                      每道题之间用 <b>空行</b> 或 <b>===</b> 分隔<br />
+                      支持的标记（都可以不写，会自动识别）：<br />
+                      &nbsp;&nbsp;• <code>题目：xxx</code> - 题目标题（第一行也可）<br />
+                      &nbsp;&nbsp;• <code>A. xxx</code> 或 <code>A、xxx</code> 或 <code>A) xxx</code> - 选项<br />
+                      &nbsp;&nbsp;• <code>答案：A</code> 或 <code>答案：AB</code>（多选用逗号或无分隔）<br />
+                      &nbsp;&nbsp;• <code>解析：xxx</code> - 可选<br />
+                      &nbsp;&nbsp;• <code>难度：1-5</code> - 可选<br />
+                      &nbsp;&nbsp;• <code>题型：单选/多选/判断</code> - 可选
+                    </div>
+                  </details>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="btn btn-primary" style={{ padding: '8px 20px' }} onClick={handleImport}>导入</button>
-                    <button className="btn-nav" onClick={() => setImportVisible(false)}>取消</button>
+                    <button className="btn btn-primary" style={{ padding: '8px 20px' }} onClick={handleImport}>📥 立即导入</button>
+                    <button className="btn-nav" onClick={() => { setImportVisible(false); setImportFile(null); setImportText(''); }}>取消</button>
                   </div>
                 </div>
               )}

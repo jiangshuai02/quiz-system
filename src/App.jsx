@@ -51,8 +51,8 @@ function App() {
     );
   }
 
-  if (!user && location.pathname !== '/welcome') return <Navigate to="/welcome" replace />;
-  if (location.pathname === '/welcome') { if (user) return <Navigate to="/" replace />; return <Welcome />; }
+  // 直接渲染首页（不是单独 welcome 页），弹窗叠加在首页之上
+  const showWelcome = !user;
 
   return (
     <div className="app-layout">
@@ -110,6 +110,9 @@ function App() {
       }}>
         <p style={{ fontSize: 13, color: '#9ca3af' }}>{siteFooter}</p>
       </footer>
+
+      {/* 欢迎弹窗 - 直接叠加在首页之上 */}
+      {showWelcome && <Welcome />}
     </div>
   );
 }

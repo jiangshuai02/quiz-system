@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Welcome() {
-  const navigate = useNavigate();
   const { signInWithName } = useAuth();
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,7 +15,7 @@ export default function Welcome() {
     setError('');
     try {
       await signInWithName(v);
-      navigate('/');
+      // 不需要 navigate，user 状态变化后弹窗自动隐藏
     } catch (e) {
       setError(e.message || '进入失败，请重试');
     } finally {

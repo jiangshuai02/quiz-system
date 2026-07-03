@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { questions, categories, difficultyLabels, difficultyText } from '../data/questions';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,20 +6,57 @@ import { addWrongAnswer, recordAnswer, updateStudyStats } from '../lib/supabase'
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function shuffleQuestionOptions(question) {
+  if (!question || !Array.isArray(question.options)) return question;
+  const indices = question.options.map((_, i) => i);
+  const shuffledIndices = shuffle(indices);
+  const newOptions = shuffledIndices.map(i => question.options[i]);
+  let newAnswer;
+  if (question.type === 'single') {
+    const originalCorrectIdx = Array.isArray(question.answer) ? question.answer[0] : question.answer;
+    newAnswer = [shuffledIndices.indexOf(originalCorrectIdx)];
+  } else {
+    newAnswer = (question.answer || []).map(a => shuffledIndices.indexOf(a)).sort((a, b) => a - b);
+  }
+  return { ...question, options: newOptions, answer: newAnswer };
+}
+
 export default function Practice() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { questionId } = useParams();
 
-  const [questionList] = useState(questions);
+  const [questionOrder, setQuestionOrder] = useState(() => questions.map((_, i) => i));
+  const [optionShuffleEnabled, setOptionShuffleEnabled] = useState(false);
+
+  const baseQuestionList = useMemo(() => {
+    return questionOrder.map(i => questions[i]);
+  }, [questionOrder]);
+
   const [currentIndex, setCurrentIndex] = useState(() => {
     if (questionId) {
-      return questions.findIndex(q => q.id === parseInt(questionId));
+      const idx = questions.findIndex(q => q.id === parseInt(questionId));
+      if (idx >= 0) return idx;
     }
     return 0;
   });
 
-  const currentQuestion = questionList[currentIndex];
+  const currentQuestionRaw = baseQuestionList[currentIndex];
+  const currentQuestion = useMemo(() => {
+    if (!currentQuestionRaw) return null;
+    if (optionShuffleEnabled) return shuffleQuestionOptions(currentQuestionRaw);
+    return currentQuestionRaw;
+  }, [currentQuestionRaw, optionShuffleEnabled]);
+
   const [selectedOptions, setSelectedOptions] = useState([]);
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
@@ -32,15 +69,14 @@ export default function Practice() {
   }, [currentIndex]);
 
   useEffect(() => {
-    if (questionId && currentIndex === -1) {
+    if (questionId && currentIndex === 0) {
       const idx = questions.findIndex(q => q.id === parseInt(questionId));
-      if (idx !== -1) setCurrentIndex(idx);
+      if (idx >= 0) setCurrentIndex(idx);
     }
   }, [questionId, currentIndex]);
 
   const handleOptionClick = (optIndex) => {
     if (showResult) return;
-
     if (currentQuestion.type === 'single') {
       setSelectedOptions([optIndex]);
     } else if (currentQuestion.type === 'multiple') {
@@ -62,13 +98,11 @@ export default function Practice() {
     setIsCorrect(correct);
     setShowResult(true);
 
-    // 记录到本地
     setAnswerHistory(prev => ({
       ...prev,
       [currentQuestion.id]: { selected: selectedOptions, isCorrect: correct }
     }));
 
-    // 同步到云端
     if (user) {
       try {
         await recordAnswer(user.id, currentQuestion.id, correct);
@@ -87,7 +121,7 @@ export default function Practice() {
   };
 
   const handleNext = () => {
-    if (currentIndex < questionList.length - 1) {
+    if (currentIndex < baseQuestionList.length - 1) {
       setCurrentIndex(currentIndex + 1);
     }
   };
@@ -96,6 +130,22 @@ export default function Practice() {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
     }
+  };
+
+  const handleShuffleQuestions = () => {
+    const indices = questions.map((_, i) => i);
+    const shuffled = shuffle(indices);
+    setQuestionOrder(shuffled);
+    setCurrentIndex(0);
+    setSelectedOptions([]);
+    setShowResult(false);
+    setIsCorrect(false);
+  };
+
+  const handleShuffleOptions = () => {
+    setOptionShuffleEnabled(prev => !prev);
+    setSelectedOptions([]);
+    setShowResult(false);
   };
 
   const getDifficultyTagClass = (level) => {
@@ -125,46 +175,71 @@ export default function Practice() {
 
   return (
     <div className="practice-page">
-      {/* Header */}
       <div className="practice-header">
         <div className="practice-progress">
           <span className="progress-text">
-            第 {currentIndex + 1} / {questionList.length} 题
+            第 {currentIndex + 1} / {baseQuestionList.length} 题
           </span>
           <div className="progress-bar">
             <div
               className="progress-fill"
-              style={{ width: `${((currentIndex + 1) / questionList.length) * 100}%` }}
+              style={{ width: `${((currentIndex + 1) / baseQuestionList.length) * 100}%` }}
             />
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{ fontSize: 14, color: 'var(--gray-500)' }}>
-            ✅ 已答 {answeredCount} 题 · 正确 {correctCount} 题
-            {user && <span style={{ marginLeft: 8, color: 'var(--success)' }}>☁️</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, color: 'var(--gray-500)' }}>
+            ✅ 已答 {answeredCount} · 正确 {correctCount}
           </span>
+          <button
+            onClick={handleShuffleQuestions}
+            style={{
+              padding: '6px 12px', fontSize: 13, fontWeight: 500,
+              background: 'white', color: '#374151',
+              border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}
+            title="打乱题目顺序"
+          >
+            🔀 题目乱序
+          </button>
+          <button
+            onClick={handleShuffleOptions}
+            style={{
+              padding: '6px 12px', fontSize: 13, fontWeight: 500,
+              background: optionShuffleEnabled ? '#eef2ff' : 'white',
+              color: optionShuffleEnabled ? '#4f46e5' : '#374151',
+              border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}
+            title="打乱当前题目选项顺序"
+          >
+            🎲 选项乱序
+          </button>
           <button className="btn-nav" onClick={() => navigate('/questions')}>
             ← 返回题库
           </button>
         </div>
       </div>
 
-      {/* Two-column layout: Question left, Answer sheet right */}
-      <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-        
-        {/* Left: Question Card */}
+      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="practice-card">
             <div className="question-number">
-              第 {currentIndex + 1} 题 / 共 {questionList.length} 题
+              第 {currentIndex + 1} 题 / 共 {baseQuestionList.length} 题
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
               <span className={`tag ${getDifficultyTagClass(currentQuestion.difficulty)}`}>
                 {difficultyLabels[currentQuestion.difficulty]} {difficultyText[currentQuestion.difficulty]}
               </span>
               <span className="tag tag-category">
                 {categories.find(c => c.id === currentQuestion.category)?.icon} {categories.find(c => c.id === currentQuestion.category)?.name}
               </span>
+              {optionShuffleEnabled && (
+                <span style={{ fontSize: 11, color: '#8b5cf6', background: '#f3e8ff', padding: '2px 8px', borderRadius: 8 }}>
+                  🎲 选项已乱序
+                </span>
+              )}
             </div>
             <span className="question-type-tag">
               {currentQuestion.type === 'single' ? '单选题' : '多选题'}
@@ -209,7 +284,7 @@ export default function Practice() {
               <button className="btn-nav" onClick={handlePrev} disabled={currentIndex === 0}>
                 ← 上一题
               </button>
-              <button className="btn-nav" onClick={handleNext} disabled={currentIndex === questionList.length - 1}>
+              <button className="btn-nav" onClick={handleNext} disabled={currentIndex === baseQuestionList.length - 1}>
                 下一题 →
               </button>
             </div>
@@ -236,11 +311,13 @@ export default function Practice() {
           </div>
         </div>
 
-        {/* Right: Answer Sheet */}
-        <div className="answer-sheet" style={{ width: 260, flexShrink: 0, position: 'sticky', top: 84 }}>
-          <div className="answer-sheet-title">📋 答题卡</div>
-          <div className="answer-sheet-grid">
-            {questionList.map((q, idx) => {
+        <div className="answer-sheet" style={{
+          width: 180, flexShrink: 0, position: 'sticky', top: 84,
+          padding: 12, maxHeight: 'calc(100vh - 100px)', overflowY: 'auto',
+        }}>
+          <div className="answer-sheet-title" style={{ fontSize: 12, marginBottom: 8 }}>📋 答题卡</div>
+          <div className="answer-sheet-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)', gap: 4 }}>
+            {baseQuestionList.map((q, idx) => {
               const ans = answerHistory[q.id];
               let btnClass = 'answer-sheet-btn';
               if (idx === currentIndex) btnClass += ' active';
@@ -251,28 +328,25 @@ export default function Practice() {
                   className={btnClass}
                   onClick={() => setCurrentIndex(idx)}
                   title={`第 ${idx + 1} 题`}
+                  style={{ width: 28, height: 28, fontSize: 12 }}
                 >
                   {idx + 1}
                 </button>
               );
             })}
           </div>
-          <div className="answer-sheet-legend">
+          <div className="answer-sheet-legend" style={{ fontSize: 11, marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span className="legend-item">
               <span className="legend-dot" style={{ background: 'var(--primary)' }} /> 当前
             </span>
             <span className="legend-item">
-              <span className="legend-dot" style={{ background: 'var(--success)' }} /> 已答正确
+              <span className="legend-dot" style={{ background: 'var(--success)' }} /> 正确
             </span>
             <span className="legend-item">
-              <span className="legend-dot" style={{ background: 'var(--error)' }} /> 已答错误
-            </span>
-            <span className="legend-item">
-              <span className="legend-dot" style={{ background: 'var(--gray-200)' }} /> 未答
+              <span className="legend-dot" style={{ background: 'var(--error)' }} /> 错误
             </span>
           </div>
         </div>
-
       </div>
     </div>
   );

@@ -97,6 +97,32 @@ export default function Admin() {
     setTimeout(() => setMsg(''), 3000);
   };
 
+  // === User Management ===
+  const handleSetAdmin = async (userId, isAdmin, nickname) => {
+    if (!confirm(`${isAdmin ? '设置' : '取消'} ${nickname} 为管理员${isAdmin ? '' : '权限'}?`)) return;
+    try {
+      const { error } = await supabase.from('profiles').update({ is_admin: isAdmin }).eq('id', userId);
+      if (error) throw error;
+      showMsg(`✅ 已${isAdmin ? '设置' : '取消'}管理员`);
+      const us = await getAllUsers(); setUsers(us);
+    } catch (e) { showMsg('❌ 失败: ' + e.message, true); }
+  };
+
+  const handleDeleteUser = async (userId, nickname) => {
+    if (!confirm(`⚠️ 确定删除用户「${nickname}」?\n\n此操作将删除:\n• 用户账号\n• 所有错题\n• 所有答题记录\n• 所有考试记录\n• 收藏\n\n此操作不可恢复!`)) return;
+    try {
+      // 删除相关数据
+      await supabase.from('wrong_answers').delete().eq('user_id', userId);
+      await supabase.from('answer_records').delete().eq('user_id', userId);
+      await supabase.from('exam_records').delete().eq('user_id', userId);
+      await supabase.from('favorites').delete().eq('user_id', userId);
+      await supabase.from('daily_stats').delete().eq('user_id', userId);
+      await supabase.from('profiles').delete().eq('id', userId);
+      showMsg('✅ 用户已删除');
+      const us = await getAllUsers(); setUsers(us);
+    } catch (e) { showMsg('❌ 删除失败: ' + e.message, true); }
+  };
+
   // === Settings ===
   const handleSaveSettings = async () => {
     try {
@@ -588,30 +614,111 @@ D. 脚本语言
             <div style={sectionStyle}>
               <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>👥 全部用户（{users.length}人）</h3>
               {users.length === 0 ? <p style={{ color: '#9ca3af', textAlign: 'center', padding: 24 }}>暂无</p> : (
-                <div style={{ overflowX: 'auto' }}>
+                <>
+                <div style={{ display: window.innerWidth < 768 ? 'block' : 'none' }}>
+                  {/* 手机端卡片视图 */}
+                  {users.map(u => {
+                    const isMe = u.id === user?.id;
+                    const accuracy = u.total_questions > 0 ? Math.round((u.correct_answers / u.total_questions) * 100) : null;
+                    return (
+                      <div key={u.id} style={{
+                        padding: '14px 16px', borderRadius: 10, marginBottom: 10,
+                        background: isMe ? '#eef2ff' : '#f9fafb',
+                        border: isMe ? '2px solid #4f46e5' : '1px solid #e5e7eb',
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                          <div>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>
+                              {u.nickname || '匿名'}
+                              {u.is_admin && <span style={{ marginLeft: 6, fontSize: 11, background: 'linear-gradient(135deg, #f59e0b, #ef4444)', color: 'white', padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>👑管理</span>}
+                              {isMe && <span style={{ marginLeft: 6, fontSize: 11, background: '#4f46e5', color: 'white', padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>我</span>}
+                            </div>
+                            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                              答题 {u.total_questions || 0} · 正确率 {accuracy !== null ? accuracy + '%' : '-'} · 连续 {u.streak_days || 0}天
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                            {!u.is_admin && (
+                              <button onClick={() => handleSetAdmin(u.id, true, u.nickname)} style={{
+                                padding: '4px 10px', fontSize: 12, background: '#fffbeb', color: '#f59e0b',
+                                border: '1px solid #fde68a', borderRadius: 6, cursor: 'pointer',
+                              }}>设管理</button>
+                            )}
+                            {u.is_admin && !isMe && (
+                              <button onClick={() => handleSetAdmin(u.id, false, u.nickname)} style={{
+                                padding: '4px 10px', fontSize: 12, background: '#f3f4f6', color: '#6b7280',
+                                border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer',
+                              }}>取消</button>
+                            )}
+                            {u.id !== user?.id && (
+                              <button onClick={() => handleDeleteUser(u.id, u.nickname)} style={{
+                                padding: '4px 10px', fontSize: 12, background: '#fef2f2', color: '#ef4444',
+                                border: '1px solid #fecaca', borderRadius: 6, cursor: 'pointer',
+                              }}>删除</button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{ display: window.innerWidth >= 768 ? 'block' : 'none', overflowX: 'auto' }}>
+                  {/* 电脑端表格视图 */}
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead><tr style={{ borderBottom: '2px solid #e5e7eb' }}>
                       <th style={{ padding: '10px 8px', textAlign: 'left', color: '#6b7280', fontWeight: 600 }}>昵称</th>
                       <th style={{ padding: '10px 8px', textAlign: 'center', color: '#6b7280', fontWeight: 600 }}>答题</th>
                       <th style={{ padding: '10px 8px', textAlign: 'center', color: '#6b7280', fontWeight: 600 }}>正确率</th>
                       <th style={{ padding: '10px 8px', textAlign: 'center', color: '#6b7280', fontWeight: 600 }}>🔥连续</th>
-                      <th style={{ padding: '10px 8px', textAlign: 'center', color: '#6b7280', fontWeight: 600 }}>👑管理</th>
+                      <th style={{ padding: '10px 8px', textAlign: 'center', color: '#6b7280', fontWeight: 600 }}>身份</th>
+                      <th style={{ padding: '10px 8px', textAlign: 'center', color: '#6b7280', fontWeight: 600 }}>操作</th>
                     </tr></thead>
                     <tbody>
-                      {users.map(u => (
-                        <tr key={u.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                          <td style={{ padding: '10px 8px', fontWeight: 500 }}>{u.nickname || '匿名'}</td>
-                          <td style={{ padding: '10px 8px', textAlign: 'center' }}>{u.total_questions || 0}</td>
-                          <td style={{ padding: '10px 8px', textAlign: 'center' }}>
-                            {u.total_questions > 0 ? <span style={{ color: Math.round((u.correct_answers / u.total_questions) * 100) >= 70 ? '#10b981' : '#ef4444', fontWeight: 600 }}>{Math.round((u.correct_answers / u.total_questions) * 100)}%</span> : '-'}
-                          </td>
-                          <td style={{ padding: '10px 8px', textAlign: 'center' }}>{u.streak_days || 0}</td>
-                          <td style={{ padding: '10px 8px', textAlign: 'center' }}>{u.is_admin ? '✅' : '-'}</td>
-                        </tr>
-                      ))}
+                      {users.map(u => {
+                        const isMe = u.id === user?.id;
+                        return (
+                          <tr key={u.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                            <td style={{ padding: '10px 8px', fontWeight: 500 }}>
+                              {u.nickname || '匿名'}
+                              {u.is_admin && <span style={{ marginLeft: 6, fontSize: 10, background: 'linear-gradient(135deg, #f59e0b, #ef4444)', color: 'white', padding: '1px 6px', borderRadius: 8, fontWeight: 600 }}>👑管理</span>}
+                              {isMe && <span style={{ marginLeft: 6, fontSize: 10, background: '#4f46e5', color: 'white', padding: '1px 6px', borderRadius: 8, fontWeight: 600 }}>我</span>}
+                            </td>
+                            <td style={{ padding: '10px 8px', textAlign: 'center' }}>{u.total_questions || 0}</td>
+                            <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                              {u.total_questions > 0 ? <span style={{ color: Math.round((u.correct_answers / u.total_questions) * 100) >= 70 ? '#10b981' : '#ef4444', fontWeight: 600 }}>{Math.round((u.correct_answers / u.total_questions) * 100)}%</span> : '-'}
+                            </td>
+                            <td style={{ padding: '10px 8px', textAlign: 'center' }}>{u.streak_days || 0}</td>
+                            <td style={{ padding: '10px 8px', textAlign: 'center' }}>{u.is_admin ? '👑' : '普通'}</td>
+                            <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                              <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                                {!u.is_admin && (
+                                  <button onClick={() => handleSetAdmin(u.id, true, u.nickname)} style={{
+                                    padding: '3px 8px', fontSize: 11, background: '#fffbeb', color: '#f59e0b',
+                                    border: '1px solid #fde68a', borderRadius: 4, cursor: 'pointer',
+                                  }}>设管理</button>
+                                )}
+                                {u.is_admin && !isMe && (
+                                  <button onClick={() => handleSetAdmin(u.id, false, u.nickname)} style={{
+                                    padding: '3px 8px', fontSize: 11, background: '#f3f4f6', color: '#6b7280',
+                                    border: '1px solid #e5e7eb', borderRadius: 4, cursor: 'pointer',
+                                  }}>取消</button>
+                                )}
+                                {u.id !== user?.id && (
+                                  <button onClick={() => handleDeleteUser(u.id, u.nickname)} style={{
+                                    padding: '3px 8px', fontSize: 11, background: '#fef2f2', color: '#ef4444',
+                                    border: '1px solid #fecaca', borderRadius: 4, cursor: 'pointer',
+                                  }}>删除</button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
+                </>
               )}
             </div>
           )}

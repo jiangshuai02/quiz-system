@@ -78,6 +78,7 @@ function App() {
             <div style={{ marginLeft: 8, paddingLeft: 8, borderLeft: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 13, color: '#6b7280', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 👤 {profile?.nickname || user?.email?.split('@')[0]}
+                {isAdmin && <span style={{ marginLeft: 4, fontSize: 10, background: 'linear-gradient(135deg, #f59e0b, #ef4444)', color: 'white', padding: '1px 6px', borderRadius: 8, fontWeight: 600 }}>👑管理</span>}
               </span>
               <button onClick={async () => { try { await signOut(); navigate('/auth'); } catch {} }}
                 style={{ padding: '4px 10px', background: 'transparent', color: '#9ca3af', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>

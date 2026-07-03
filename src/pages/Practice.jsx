@@ -75,11 +75,42 @@ export default function Practice() {
     }
   }, [questionId, currentIndex]);
 
+  // 计算结果（不调用 handleSubmit，直接在这里处理）
+  const computeResult = (selected) => {
+    if (!currentQuestion || selected.length === 0) return null;
+    return currentQuestion.type === 'single'
+      ? selected[0] === currentQuestion.answer
+      : JSON.stringify([...selected].sort()) === JSON.stringify([...currentQuestion.answer].sort());
+  };
+
+  // 同步到云端（独立函数）
+  const syncToCloud = async (selected, correct) => {
+    if (!user) return;
+    try {
+      await recordAnswer(user.id, currentQuestion.id, correct);
+      if (!correct) {
+        await addWrongAnswer(user.id, currentQuestion.id, selected.map(i => OPTION_LETTERS[i]).join(','));
+      }
+      await updateStudyStats(user.id, correct);
+    } catch (e) {
+      console.error('同步失败', e);
+    }
+  };
+
+  // 实时判错：单选题点击即判错，多选题需要一个"提交"按钮
   const handleOptionClick = (optIndex) => {
     if (showResult) return;
     if (currentQuestion.type === 'single') {
-      setSelectedOptions([optIndex]);
-    } else if (currentQuestion.type === 'multiple') {
+      // 单选题：点击即提交
+      const sel = [optIndex];
+      const correct = computeResult(sel);
+      setSelectedOptions(sel);
+      setIsCorrect(correct);
+      setShowResult(true);
+      setAnswerHistory(prev => ({ ...prev, [currentQuestion.id]: { selected: sel, isCorrect: correct } }));
+      syncToCloud(sel, correct);
+    } else {
+      // 多选题：切换选择，不立即提交
       setSelectedOptions(prev =>
         prev.includes(optIndex)
           ? prev.filter(i => i !== optIndex)
@@ -88,26 +119,14 @@ export default function Practice() {
     }
   };
 
-  const handleSubmit = async () => {
+  // 多选题的"提交"按钮
+  const handleSubmitMultiple = () => {
     if (selectedOptions.length === 0) return;
-    const correct = currentQuestion.type === 'single'
-      ? selectedOptions[0] === currentQuestion.answer
-      : JSON.stringify([...selectedOptions].sort()) === JSON.stringify([...currentQuestion.answer].sort());
+    const correct = computeResult(selectedOptions);
     setIsCorrect(correct);
     setShowResult(true);
-    setAnswerHistory(prev => ({
-      ...prev,
-      [currentQuestion.id]: { selected: selectedOptions, isCorrect: correct }
-    }));
-    if (user) {
-      try {
-        await recordAnswer(user.id, currentQuestion.id, correct);
-        if (!correct) {
-          await addWrongAnswer(user.id, currentQuestion.id, selectedOptions.map(i => OPTION_LETTERS[i]).join(','));
-        }
-        await updateStudyStats(user.id, correct);
-      } catch (e) { console.error('同步失败', e); }
-    }
+    setAnswerHistory(prev => ({ ...prev, [currentQuestion.id]: { selected: selectedOptions, isCorrect: correct } }));
+    syncToCloud(selectedOptions, correct);
   };
 
   const handleNext = () => {
@@ -155,6 +174,7 @@ export default function Practice() {
 
   const answeredCount = Object.keys(answerHistory).length;
   const correctCount = Object.values(answerHistory).filter(a => a.isCorrect).length;
+  const isMultiple = currentQuestion.type === 'multiple';
 
   return (
     <div className="practice-page" style={{ position: 'relative' }}>
@@ -193,7 +213,6 @@ export default function Practice() {
         </div>
       </div>
 
-      {/* 题目区 - 留出右侧空间给答题卡 */}
       <div style={{ paddingRight: 0 }}>
         <div className="practice-card">
           <div className="question-number">
@@ -206,15 +225,15 @@ export default function Practice() {
             <span className="tag tag-category">
               {categories.find(c => c.id === currentQuestion.category)?.icon} {categories.find(c => c.id === currentQuestion.category)?.name}
             </span>
+            <span style={{ fontSize: 11, color: isMultiple ? '#8b5cf6' : '#3b82f6', background: isMultiple ? '#f3e8ff' : '#dbeafe', padding: '2px 8px', borderRadius: 8 }}>
+              {isMultiple ? '📝 多选题' : '⚡ 单选题（点击即判）'}
+            </span>
             {optionShuffleEnabled && (
               <span style={{ fontSize: 11, color: '#8b5cf6', background: '#f3e8ff', padding: '2px 8px', borderRadius: 8 }}>
                 🎲 选项已乱序
               </span>
             )}
           </div>
-          <span className="question-type-tag">
-            {currentQuestion.type === 'single' ? '单选题' : '多选题'}
-          </span>
           <div className="question-text">{currentQuestion.title}</div>
 
           <div className="options">
@@ -238,10 +257,16 @@ export default function Practice() {
           </div>
 
           <div className="practice-actions">
-            <button className="btn-submit" onClick={handleSubmit}
-              disabled={selectedOptions.length === 0 || showResult}>
-              ✅ 提交答案
-            </button>
+            {isMultiple && !showResult && (
+              <button
+                className="btn-submit"
+                onClick={handleSubmitMultiple}
+                disabled={selectedOptions.length === 0}
+                style={{ background: selectedOptions.length === 0 ? '#cbd5e1' : '#8b5cf6' }}
+              >
+                ✅ 提交答案（多选）
+              </button>
+            )}
             <button className="btn-nav" onClick={handlePrev} disabled={currentIndex === 0}>
               ← 上一题
             </button>
@@ -272,7 +297,6 @@ export default function Practice() {
         </div>
       </div>
 
-      {/* 答题卡 - 固定在视口最右侧 */}
       <div className="answer-sheet" style={{
         position: 'fixed',
         right: 20,

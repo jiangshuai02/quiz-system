@@ -87,27 +87,27 @@ export default function Admin() {
         authUsers = await apiFetch('/auth/v1/admin/users?page=1&per_page=50') || [];
       } catch (e) { console.warn('auth admin users failed', e); }
 
-      // 建立 meta
-      const meta = {};
-      const combinedList = [...userList];
-
-      // 把 auth 里有但 profiles 没有的也加进去（避免漏）
-      authUsers.forEach(au => {
-        if (!combinedList.find(c => c.id === au.id)) {
-          combinedList.push({
-            id: au.id,
-            nickname: au.user_metadata?.full_name || au.email?.split('@')[0] || '匿名',
-            email: au.email,
-            is_admin: false,
-            total_questions: 0,
-            correct_answers: 0,
-            streak_days: 0,
-            _fromAuth: true,
-          });
-        }
+      // 始终以 auth.users 为主数据源
+      const combinedList = authUsers.map(au => {
+        const profile = userList.find(p => p.id === au.id);
+        return {
+          id: au.id,
+          nickname: au.user_metadata?.full_name || au.email?.split('@')[0] || '匿名',
+          email: au.email,
+          is_admin: profile?.is_admin || au.email === 'jiangshuai@shuati.app',
+          total_questions: profile?.total_questions || 0,
+          correct_answers: profile?.correct_answers || 0,
+          wrong_answers: profile?.wrong_answers || 0,
+          streak_days: profile?.streak_days || 0,
+        };
+      });
+      // 也补上 profiles 里有但 auth 没有的（保险）
+      userList.forEach(p => {
+        if (!combinedList.find(c => c.id === p.id)) combinedList.push(p);
       });
 
       // 填充 meta
+      const meta = {};
       combinedList.forEach(usr => {
         const au = authUsers.find(a => a.id === usr.id);
         meta[usr.id] = {
@@ -118,10 +118,7 @@ export default function Admin() {
       });
 
       setUserMeta(meta);
-      // 用合并后的列表覆盖原 userList（这样新登录的 33、顾哈哈 等都会出现）
-      if (combinedList.length > userList.length) {
-        setUsers(combinedList);
-      }
+      setUsers(combinedList);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };

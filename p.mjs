@@ -54,7 +54,7 @@ for (const f of files) {
 }
 const treeRes = await api('POST', `/repos/${REPO}/git/trees`, { base_tree: baseSha, tree });
 const commitRes = await api('POST', `/repos/${REPO}/git/commits`, {
-  message: 'fix: jiangshuai 用固定 UUID，对应到数据库管理员账号',
+  message: 'fix: 简化 render.yaml 路由配置 + 添加 vercel.json',
   tree: treeRes.data.sha, parents: [baseSha],
 });
 await api('PATCH', `/repos/${REPO}/git/refs/heads/main`, { sha: commitRes.data.sha });

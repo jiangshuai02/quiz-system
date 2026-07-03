@@ -97,8 +97,8 @@ export default function Questions() {
         </button>
         {categories.map(cat => (
           <button key={cat.id} className={`filter-btn ${selectedCategory === cat.id ? 'active' : ''}`}
-            onClick={() => handleCategoryClick(cat.id)}
-            title={`点击直接刷 ${cat.name} 题`}>
+            onClick={() => setSelectedCategory(cat.id)}
+            title={`筛选 ${cat.name} 题目`}>
             {cat.icon} {cat.name}
           </button>
         ))}

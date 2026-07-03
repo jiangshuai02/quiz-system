@@ -22,9 +22,17 @@ function App() {
   const [siteFooter, setSiteFooter] = useState('© 2026 王大拿刷题宝 — 面试刷题，轻松拿 Offer 🚀');
 
   useEffect(() => {
-    if (user) checkIsAdmin(user.id).then(setIsAdmin).catch(() => setIsAdmin(false));
-    else setIsAdmin(false);
-  }, [user]);
+    if (user) {
+      // 优先用 profile 里的 is_admin，避免权限问题
+      if (profile?.is_admin !== undefined) {
+        setIsAdmin(!!profile.is_admin);
+      } else {
+        checkIsAdmin(user.id).then(setIsAdmin).catch(() => setIsAdmin(false));
+      }
+    } else {
+      setIsAdmin(false);
+    }
+  }, [user, profile]);
 
   useEffect(() => {
     getSiteSettings().then(s => {

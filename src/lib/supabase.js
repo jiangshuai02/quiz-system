@@ -305,3 +305,86 @@ export async function getDailyStats() {
   if (error) throw error;
   return data || [];
 }
+
+/**
+ * ========== 网站设置 ==========
+ */
+export async function getSiteSettings() {
+  const { data, error } = await supabase.from('site_settings').select('*');
+  if (error) throw error;
+  const settings = {};
+  (data || []).forEach(s => { settings[s.key] = s.value; });
+  return settings;
+}
+
+export async function updateSiteSetting(key, value) {
+  const existing = await supabase.from('site_settings').select('id').eq('key', key).maybeSingle();
+  if (existing.data) {
+    const { error } = await supabase.from('site_settings').update({ value }).eq('key', key);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from('site_settings').insert({ key, value });
+    if (error) throw error;
+  }
+}
+
+/** ========== 公告 ========== */
+export async function getAnnouncements() {
+  const { data, error } = await supabase.from('announcements')
+    .select('*').order('priority', { ascending: false }).order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getActiveAnnouncements() {
+  const { data, error } = await supabase.from('announcements')
+    .select('*').eq('is_active', true).order('priority', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createAnnouncement(title, content, priority = 0) {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { error } = await supabase.from('announcements').insert({
+    title, content, priority, created_by: user?.id,
+  });
+  if (error) throw error;
+}
+
+export async function updateAnnouncement(id, updates) {
+  const { error } = await supabase.from('announcements').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteAnnouncement(id) {
+  const { error } = await supabase.from('announcements').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/** ========== 管理题目 ========== */
+export async function getAdminQuestions() {
+  const { data, error } = await supabase.from('admin_questions')
+    .select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createAdminQuestion(q) {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data, error } = await supabase.from('admin_questions').insert({
+    ...q, created_by: user?.id,
+  }).select();
+  if (error) throw error;
+  return data?.[0];
+}
+
+export async function updateAdminQuestion(id, q) {
+  const { error } = await supabase.from('admin_questions')
+    .update({ ...q, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteAdminQuestion(id) {
+  const { error } = await supabase.from('admin_questions').delete().eq('id', id);
+  if (error) throw error;
+}

@@ -4,6 +4,8 @@ const SUPABASE_URL = 'https://gzkznkidmkdboazhfsve.supabase.co';
 export { SUPABASE_URL };
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6a3pua2lkbWtkYm9hemhmc3ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwNjEwMjIsImV4cCI6MjA5ODYzNzAyMn0.2T-xtEsFx6VgarBRL808HGJ9PR3S7k9NZ6TAgU45eFw';
 export { SUPABASE_ANON_KEY };
+// service_role 仅用于管理后台的 admin API（前端调用会被 Supabase 视为可信）
+const SUPABASE_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6a3pua2lkbWtkYm9hemhmc3ZlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MzA2MTAyMiwiZXhwIjoyMDk4NjM3MDIyfQ.Ct2nfxKzoT6ptCHoi2PS4rJGCYm7YwS8aTY61xvW0hY';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
@@ -21,11 +23,14 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 // 直接 fetch 工具（绕过 supabase-js 的 RLS 问题）
 export async function apiFetch(path, options = {}) {
   const url = `${SUPABASE_URL}${path}`;
+  // /auth/v1/admin/* 这种管理 API 需要 service_role，其它用 anon
+  const isAdmin = path.startsWith('/auth/v1/admin') || path.startsWith('/rest/v1/profiles');
+  const key = isAdmin ? SUPABASE_SERVICE_ROLE_KEY : SUPABASE_ANON_KEY;
   const res = await fetch(url, {
     ...options,
     headers: {
-      'apikey': SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'apikey': key,
+      'Authorization': `Bearer ${key}`,
       'Content-Type': 'application/json',
       ...(options.headers || {}),
     },

@@ -54,7 +54,7 @@ for (const f of files) {
 }
 const treeRes = await api('POST', `/repos/${REPO}/git/trees`, { base_tree: baseSha, tree });
 const commitRes = await api('POST', `/repos/${REPO}/git/commits`, {
-  message: 'fix: 一次性拉取所有 auth users，IP/地址不再为空',
+  message: 'fix: apiFetch 调用 admin API 时用 service_role key',
   tree: treeRes.data.sha, parents: [baseSha],
 });
 await api('PATCH', `/repos/${REPO}/git/refs/heads/main`, { sha: commitRes.data.sha });

@@ -65,17 +65,27 @@ export default function Admin() {
     loadAll();
   }, [isAdmin]);
 
+  // 编辑公告时填入表单
+  useEffect(() => {
+    if (annForm.editing && announcements.length > 0) {
+      const a = announcements.find(x => x.id === annForm.editing);
+      if (a && (annForm.title !== a.title || annForm.content !== a.content)) {
+        // 已经被打开编辑
+      }
+    }
+  }, [announcements]);
+
   const loadAll = async () => {
     try {
-      const [u, e, s, ta, tu, st, ann, aq, ac] = await Promise.all([
+      const results = await Promise.allSettled([
         getAllUsers(), getAllExamRecords(50), getExamStatistics(),
         getTotalAnswerCount(), getTotalUserCount(), getSiteSettings(),
         getAnnouncements(), getAdminQuestions(), getAdminCategories(),
       ]);
-      setUsers(u); setExams(e); setStats(s); setTotalAnswers(ta); setTotalUsers(tu);
-      setSettings(st); setAnnouncements(ann); setAdminQuestions(aq); setAdminCategories(ac);
-      setEditTitle(st.site_title || ''); setEditFooter(st.site_footer || '');
-      setEditDesc(st.site_description || '');
+      const [u, e, s, ta, tu, st, ann, aq, ac] = results.map(r => r.status === 'fulfilled' ? r.value : []);
+      setUsers(u || []); setExams(e || []); setStats(s || []); setTotalAnswers(ta || 0); setTotalUsers(tu || 0);
+      setSettings(st || {}); setAnnouncements(ann || []); setAdminQuestions(aq || []); setAdminCategories(ac || []);
+      if (st) { setEditTitle(st.site_title || ''); setEditFooter(st.site_footer || ''); setEditDesc(st.site_description || ''); }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };

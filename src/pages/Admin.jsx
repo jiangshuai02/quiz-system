@@ -87,10 +87,28 @@ export default function Admin() {
         authUsers = await apiFetch('/auth/v1/admin/users?page=1&per_page=50') || [];
       } catch (e) { console.warn('auth admin users failed', e); }
 
-      // 建立 meta: id -> { email, last_sign_in_at }
+      // 建立 meta
       const meta = {};
-      // 用 profiles 里的 id 都填充
-      userList.forEach(usr => {
+      const combinedList = [...userList];
+
+      // 把 auth 里有但 profiles 没有的也加进去（避免漏）
+      authUsers.forEach(au => {
+        if (!combinedList.find(c => c.id === au.id)) {
+          combinedList.push({
+            id: au.id,
+            nickname: au.user_metadata?.full_name || au.email?.split('@')[0] || '匿名',
+            email: au.email,
+            is_admin: false,
+            total_questions: 0,
+            correct_answers: 0,
+            streak_days: 0,
+            _fromAuth: true,
+          });
+        }
+      });
+
+      // 填充 meta
+      combinedList.forEach(usr => {
         const au = authUsers.find(a => a.id === usr.id);
         meta[usr.id] = {
           email: usr.email || au?.email || '',
@@ -98,18 +116,12 @@ export default function Admin() {
           ip: au?.last_sign_in_ip,
         };
       });
-      // 也把 auth 里有但 profiles 没有的加进去（防止遗漏）
-      authUsers.forEach(au => {
-        if (!meta[au.id]) {
-          meta[au.id] = {
-            email: au.email,
-            last_sign_in_at: au.last_sign_in_at,
-            ip: au.last_sign_in_ip,
-          };
-        }
-      });
 
       setUserMeta(meta);
+      // 用合并后的列表覆盖原 userList（这样新登录的 33、顾哈哈 等都会出现）
+      if (combinedList.length > userList.length) {
+        setUsers(combinedList);
+      }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };

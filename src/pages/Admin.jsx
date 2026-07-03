@@ -321,21 +321,24 @@ export default function Admin() {
               )}
 
               {qFormVisible && qForm && (
-                <div style={{ ...sectionStyle, marginBottom: 16 }}>
+                <div style={{ ...sectionStyle, marginBottom: 16, position: 'relative', zIndex: 1 }}>
                   <h4 style={{ fontWeight: 600, marginBottom: 12 }}>{qForm.editing ? '✏️ 编辑题目' : '➕ 新增题目'}</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
-                    <select value={qForm.category} onChange={e => setQForm({...qForm, category: e.target.value})} style={{ padding: 8, borderRadius: 6, border: '1px solid #d1d5db' }}>
+                  <textarea placeholder="题目内容" value={qForm.title} onChange={e => setQForm({...qForm, title: e.target.value})} style={{ width: '100%', minHeight: 60, padding: 10, borderRadius: 6, border: '1px solid #d1d5db', marginBottom: 12, fontSize: 14 }} />
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 12, position: 'relative', zIndex: 2 }}>
+                    <div style={{ position: 'relative', zIndex: 10 }}><div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>分类</div>
+                    <select value={qForm.category} onChange={e => setQForm({...qForm, category: e.target.value})} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', background: 'white', minWidth: 140 }}>
                       {allCategories.map(c => <option key={c.id || c.slug} value={c.id || c.slug}>{c.icon} {c.name}</option>)}
-                    </select>
-                    <select value={qForm.difficulty} onChange={e => setQForm({...qForm, difficulty: parseInt(e.target.value)})} style={{ padding: 8, borderRadius: 6, border: '1px solid #d1d5db' }}>
+                    </select></div>
+                    <div style={{ position: 'relative', zIndex: 9 }}><div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>难度</div>
+                    <select value={qForm.difficulty} onChange={e => setQForm({...qForm, difficulty: parseInt(e.target.value)})} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', background: 'white' }}>
                       {DIFFICULTIES.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-                    </select>
-                    <select value={qForm.type} onChange={e => setQForm({...qForm, type: e.target.value, answer: e.target.value === 'single' ? '0' : []})} style={{ padding: 8, borderRadius: 6, border: '1px solid #d1d5db' }}>
+                    </select></div>
+                    <div style={{ position: 'relative', zIndex: 8 }}><div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>题型</div>
+                    <select value={qForm.type} onChange={e => setQForm({...qForm, type: e.target.value, answer: e.target.value === 'single' ? '0' : []})} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', background: 'white' }}>
                       <option value="single">单选题</option>
                       <option value="multiple">多选题</option>
-                    </select>
+                    </select></div>
                   </div>
-                  <textarea placeholder="题目内容" value={qForm.title} onChange={e => setQForm({...qForm, title: e.target.value})} style={{ width: '100%', minHeight: 60, padding: 10, borderRadius: 6, border: '1px solid #d1d5db', marginBottom: 12, fontSize: 14 }} />
                   <div style={{ marginBottom: 12 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151' }}>选项（每行一个）</div>
                     {qForm.options.map((opt, i) => (

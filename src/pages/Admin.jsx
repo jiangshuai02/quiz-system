@@ -77,48 +77,22 @@ export default function Admin() {
       ]);
       const [u, e, s, ta, tu, st, ann, aq, ac] = results.map(r => r.status === 'fulfilled' ? r.value : []);
       const userList = u || [];
+      // 按 last_sign_in_at 倒序（最近登录的在前）
+      userList.sort((a, b) => (b.last_sign_in_at || '').localeCompare(a.last_sign_in_at || ''));
       setUsers(userList); setExams(e || []); setStats(s || []); setTotalAnswers(ta || 0); setTotalUsers(tu || 0);
       setSettings(st || {}); setAnnouncements(ann || []); setAdminQuestions(aq || []); setAdminCategories(ac || []);
       if (st) { setEditTitle(st.site_title || ''); setEditFooter(st.site_footer || ''); setEditDesc(st.site_description || ''); }
 
-      // 一次性拉取所有 auth 用户（包含 email + last_sign_in_at 等）
-      let authUsers = [];
-      try {
-        authUsers = await apiFetch('/auth/v1/admin/users?page=1&per_page=50') || [];
-      } catch (e) { console.warn('auth admin users failed', e); }
-
-      // 始终以 auth.users 为主数据源
-      const combinedList = authUsers.map(au => {
-        const profile = userList.find(p => p.id === au.id);
-        return {
-          id: au.id,
-          nickname: au.user_metadata?.full_name || au.email?.split('@')[0] || '匿名',
-          email: au.email,
-          is_admin: profile?.is_admin || au.email === 'jiangshuai@shuati.app',
-          total_questions: profile?.total_questions || 0,
-          correct_answers: profile?.correct_answers || 0,
-          wrong_answers: profile?.wrong_answers || 0,
-          streak_days: profile?.streak_days || 0,
-        };
-      });
-      // 也补上 profiles 里有但 auth 没有的（保险）
-      userList.forEach(p => {
-        if (!combinedList.find(c => c.id === p.id)) combinedList.push(p);
-      });
-
-      // 填充 meta
+      // meta 直接从 profiles 读取（不依赖 auth API）
       const meta = {};
-      combinedList.forEach(usr => {
-        const au = authUsers.find(a => a.id === usr.id);
+      userList.forEach(usr => {
         meta[usr.id] = {
-          email: usr.email || au?.email || '',
-          last_sign_in_at: au?.last_sign_in_at || usr.last_sign_in_at,
-          ip: au?.last_sign_in_ip,
+          email: usr.email || '',
+          last_sign_in_at: usr.last_sign_in_at || usr.updated_at || usr.created_at,
+          ip: usr.last_sign_in_ip,
         };
       });
-
       setUserMeta(meta);
-      setUsers(combinedList);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };

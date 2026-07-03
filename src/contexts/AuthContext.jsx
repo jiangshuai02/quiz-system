@@ -1,44 +1,23 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { supabase, apiFetch } from '../lib/supabase';
+import { apiFetch } from '../lib/supabase';
 
 const AuthContext = createContext({});
 const STORAGE_KEY = 'shuati_user';
-
-// 根据名字生成确定的邮箱和密码（同一名字永远是同一个账号）
-function nameToEmail(name) {
-  if (name === 'jiangshuai') return 'jiangshuai@shuati.app';
-  return `${simpleHash(name).slice(0, 10)}@shuati.local`;
-}
-function nameToPassword(name) {
-  if (name === 'jiangshuai') return '17539363075';
-  return 'shuati_' + simpleHash(name).slice(0, 10);
-}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 启动：从 localStorage 恢复会话
   useEffect(() => {
     (async () => {
-      try {
-        // 检查 Supabase 会话
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          setUser(session.user);
-          loadProfile(session.user.id, session.user.user_metadata?.full_name);
-          return;
-        }
-      } catch {}
-      // fallback: localStorage
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
           const saved = JSON.parse(raw);
           if (saved && saved.id) {
-            setUser({ id: saved.id, email: saved.email, _local: true });
-            loadProfile(saved.id, saved.nickname);
+            setUser({ id: saved.id, nickname: saved.nickname, _local: true });
+            await loadAndUpdateProfile(saved.id, saved.nickname);
             return;
           }
         }
@@ -47,28 +26,36 @@ export function AuthProvider({ children }) {
     })();
   }, []);
 
-  async function loadProfile(userId, fallbackNickname = '') {
+  // 加载 profile + 更新最后登录时间
+  async function loadAndUpdateProfile(userId, nickname) {
     try {
-      const list = await apiFetch(`/rest/v1/profiles?id=eq.${userId}&select=*`);
-      const isJ = fallbackNickname === 'jiangshuai';
+      let list = await apiFetch(`/rest/v1/profiles?id=eq.${userId}&select=*`);
+      const isJ = nickname === 'jiangshuai';
+      const today = new Date().toISOString().slice(0, 10);
+
       if (Array.isArray(list) && list.length > 0) {
         const cur = list[0];
-        if (isJ && !cur.is_admin) {
-          const updated = await apiFetch(`/rest/v1/profiles?id=eq.${userId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-            body: JSON.stringify({ is_admin: true }),
-          });
-          setProfile(Array.isArray(updated) && updated.length > 0 ? updated[0] : { ...cur, is_admin: true });
-        } else {
-          setProfile(cur);
-        }
+        // 更新最后登录（用 last_study_date 字段记录今天日期）
+        await apiFetch(`/rest/v1/profiles?id=eq.${userId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+          body: JSON.stringify({
+            last_study_date: today,
+            updated_at: new Date().toISOString(),
+            // 自动给 jiangshuai 设管理员
+            ...(isJ && !cur.is_admin ? { is_admin: true } : {}),
+          }),
+        });
+        setProfile({ ...cur, last_study_date: today, is_admin: isJ || cur.is_admin });
       } else {
+        // 创建新 profile
         const created = await apiFetch('/rest/v1/profiles', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
           body: JSON.stringify({
-            id: userId, nickname: fallbackNickname,
+            id: userId,
+            nickname,
+            last_study_date: today,
             total_questions: 0, correct_answers: 0, wrong_answers: 0, streak_days: 0,
             is_admin: isJ,
           }),
@@ -79,56 +66,35 @@ export function AuthProvider({ children }) {
     finally { setLoading(false); }
   }
 
-  // 核心：登录 → 先在 Supabase Auth 注册/登录，再加载 profile
   const signInWithName = async (nickname) => {
     const name = (nickname || '').trim();
     if (!name) throw new Error('请输入名字');
     if (name.length > 20) throw new Error('名字不能超过 20 个字');
 
-    const email = nameToEmail(name);
-    const password = nameToPassword(name);
-
-    let authUser;
-
-    // 第一步：Try Sign In
-    const { data: siData, error: siError } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (siError) {
-      // 用户不存在 → 注册
-      const { data: suData, error: suError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { full_name: name } },
-      });
-      if (suError) throw new Error(suError.message);
-      authUser = suData.user;
+    // 用昵称 hash 生成稳定 UUID（同一名字同一浏览器=同一ID）
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    let userId;
+    if (name === 'jiangshuai') {
+      userId = '149c950b-be93-475c-bcc4-a8addfce5095';
+    } else if (stored && stored.nickname === name && stored.id) {
+      userId = stored.id;
     } else {
-      authUser = siData.user;
+      userId = 'c' + simpleHash(name).padStart(8, '0') + '-' +
+        simpleHash(name + 'a').slice(0, 4) + '-' +
+        simpleHash(name + 'b').slice(0, 4) + '-' +
+        simpleHash(name + 'c').slice(0, 12);
     }
 
-    if (!authUser) throw new Error('登录失败，请重试');
-
-    const u = {
-      id: authUser.id,
-      email: authUser.email,
-      nickname: name,
-      _supabase: true,
-    };
-
+    const u = { id: userId, nickname: name, _local: true };
     setUser(u);
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      id: authUser.id,
-      email: authUser.email,
-      nickname: name,
-      savedAt: Date.now(),
+      id: userId, nickname: name, savedAt: Date.now(),
     }));
-
-    await loadProfile(authUser.id, name);
+    await loadAndUpdateProfile(userId, name);
     return u;
   };
 
-  const signOut = async () => {
-    try { await supabase.auth.signOut(); } catch {}
+  const signOut = () => {
     setUser(null);
     setProfile(null);
     localStorage.removeItem(STORAGE_KEY);

@@ -104,6 +104,26 @@ export default function Questions() {
         ))}
       </div>
 
+      {/* 新增：按知识点刷题快捷栏 */}
+      <div className="quick-practice-bar">
+        <div className="quick-practice-title">
+          <span className="quick-practice-icon">🏷️</span>
+          <span>按知识点刷题</span>
+          <span className="quick-practice-hint">点击直接进入刷题</span>
+        </div>
+        <div className="quick-practice-grid">
+          {categories.map(cat => (
+            <button key={cat.id} className="quick-practice-btn"
+              onClick={() => handleCategoryClick(cat.id)}
+              title={`直接刷 ${cat.name} 题`}>
+              <span className="quick-practice-emoji">{cat.icon}</span>
+              <span className="quick-practice-name">{cat.name}</span>
+              <span className="quick-practice-count">{getQuestionsByCategory(cat.id).length}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="filter-bar">
         <button className={`filter-btn ${selectedDifficulty === 'all' ? 'active' : ''}`}
           onClick={() => setSelectedDifficulty('all')}>

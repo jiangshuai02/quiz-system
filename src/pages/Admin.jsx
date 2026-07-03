@@ -81,31 +81,34 @@ export default function Admin() {
       setSettings(st || {}); setAnnouncements(ann || []); setAdminQuestions(aq || []); setAdminCategories(ac || []);
       if (st) { setEditTitle(st.site_title || ''); setEditFooter(st.site_footer || ''); setEditDesc(st.site_description || ''); }
 
-      // 加载每个用户的登录元信息（email + 最后登录 + 尝试查 IP/地址）
+      // 一次性拉取所有 auth 用户（包含 email + last_sign_in_at 等）
+      let authUsers = [];
+      try {
+        authUsers = await apiFetch('/auth/v1/admin/users?page=1&per_page=50') || [];
+      } catch (e) { console.warn('auth admin users failed', e); }
+
+      // 建立 meta: id -> { email, last_sign_in_at }
       const meta = {};
-      await Promise.all(userList.map(async (usr) => {
-        try {
-          const data = await apiFetch(`/auth/v1/admin/users/${usr.id}`);
-          if (data) {
-            meta[usr.id] = {
-              email: data.email,
-              last_sign_in_at: data.last_sign_in_at,
-              ip: data.last_sign_in_ip || data.app_metadata?.ip,
-            };
-          }
-        } catch {}
-      }));
-      // 用 ipapi.co 批量查地址（用 admin user 自己的 IP 兜底）
-      for (const [uid, m] of Object.entries(meta)) {
-        if (m.ip && !m.location) {
-          try {
-            const loc = await fetch(`https://ipapi.co/${m.ip}/json/`).then(r => r.json()).catch(() => ({}));
-            if (loc && !loc.error) {
-              meta[uid].location = [loc.country, loc.region, loc.city].filter(Boolean).join(' ');
-            }
-          } catch {}
+      // 用 profiles 里的 id 都填充
+      userList.forEach(usr => {
+        const au = authUsers.find(a => a.id === usr.id);
+        meta[usr.id] = {
+          email: usr.email || au?.email || '',
+          last_sign_in_at: au?.last_sign_in_at || usr.last_sign_in_at,
+          ip: au?.last_sign_in_ip,
+        };
+      });
+      // 也把 auth 里有但 profiles 没有的加进去（防止遗漏）
+      authUsers.forEach(au => {
+        if (!meta[au.id]) {
+          meta[au.id] = {
+            email: au.email,
+            last_sign_in_at: au.last_sign_in_at,
+            ip: au.last_sign_in_ip,
+          };
         }
-      }
+      });
+
       setUserMeta(meta);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }

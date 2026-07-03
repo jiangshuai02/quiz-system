@@ -25,6 +25,7 @@ export default function Auth() {
         navigate('/');
       } else {
         const result = await signUp(email, password, nickname);
+        console.log('注册结果:', result);
         if (result.user && !result.session) {
           setMessage('注册成功！请去邮箱查收验证邮件（如果开启了邮箱验证）');
         } else {
@@ -32,7 +33,8 @@ export default function Auth() {
         }
       }
     } catch (e) {
-      setError(e.message || '操作失败，请重试');
+      console.error('Auth error:', e);
+      setError(`${e.message || e.toString() || '操作失败，请重试'} | 状态码: ${e.status || 'N/A'} | 名称: ${e.name || 'N/A'}`);
     } finally {
       setLoading(false);
     }

@@ -149,123 +149,130 @@ export default function Practice() {
         </div>
       </div>
 
-      {/* Answer Sheet */}
-      <div className="answer-sheet">
-        <div className="answer-sheet-title">📋 答题卡</div>
-        <div className="answer-sheet-grid">
-          {questionList.map((q, idx) => {
-            const ans = answerHistory[q.id];
-            let btnClass = 'answer-sheet-btn';
-            if (idx === currentIndex) btnClass += ' active';
-            else if (ans) btnClass += ans.isCorrect ? ' answered-correct' : ' answered-wrong';
-            return (
+      {/* Two-column layout: Question left, Answer sheet right */}
+      <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+        
+        {/* Left: Question Card */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="practice-card">
+            <div className="question-number">
+              第 {currentIndex + 1} 题 / 共 {questionList.length} 题
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+              <span className={`tag ${getDifficultyTagClass(currentQuestion.difficulty)}`}>
+                {difficultyLabels[currentQuestion.difficulty]} {difficultyText[currentQuestion.difficulty]}
+              </span>
+              <span className="tag tag-category">
+                {categories.find(c => c.id === currentQuestion.category)?.icon} {categories.find(c => c.id === currentQuestion.category)?.name}
+              </span>
+            </div>
+            <span className="question-type-tag">
+              {currentQuestion.type === 'single' ? '单选题' : '多选题'}
+            </span>
+            <div className="question-text">{currentQuestion.title}</div>
+
+            <div className="options">
+              {currentQuestion.options.map((opt, idx) => {
+                let optionClass = 'option';
+                if (selectedOptions.includes(idx)) optionClass += ' selected';
+
+                if (showResult) {
+                  const isCorrectAnswer = currentQuestion.type === 'single'
+                    ? idx === currentQuestion.answer
+                    : currentQuestion.answer.includes(idx);
+
+                  if (isCorrectAnswer) optionClass += ' correct';
+                  else if (selectedOptions.includes(idx) && !isCorrectAnswer) optionClass += ' wrong';
+                }
+
+                return (
+                  <div
+                    key={idx}
+                    className={optionClass}
+                    onClick={() => handleOptionClick(idx)}
+                  >
+                    <span className="option-letter">{OPTION_LETTERS[idx]}</span>
+                    <span>{opt}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="practice-actions">
               <button
-                key={q.id}
-                className={btnClass}
-                onClick={() => setCurrentIndex(idx)}
-                title={`第 ${idx + 1} 题`}
+                className="btn-submit"
+                onClick={handleSubmit}
+                disabled={selectedOptions.length === 0 || showResult}
               >
-                {idx + 1}
+                ✅ 提交答案
               </button>
-            );
-          })}
-        </div>
-        <div className="answer-sheet-legend">
-          <span className="legend-item">
-            <span className="legend-dot" style={{ background: 'var(--primary)' }} /> 当前
-          </span>
-          <span className="legend-item">
-            <span className="legend-dot" style={{ background: 'var(--success)' }} /> 已答正确
-          </span>
-          <span className="legend-item">
-            <span className="legend-dot" style={{ background: 'var(--error)' }} /> 已答错误
-          </span>
-          <span className="legend-item">
-            <span className="legend-dot" style={{ background: 'var(--gray-200)' }} /> 未答
-          </span>
-        </div>
-      </div>
+              <button className="btn-nav" onClick={handlePrev} disabled={currentIndex === 0}>
+                ← 上一题
+              </button>
+              <button className="btn-nav" onClick={handleNext} disabled={currentIndex === questionList.length - 1}>
+                下一题 →
+              </button>
+            </div>
 
-      {/* Question Card */}
-      <div className="practice-card">
-        <div className="question-number">
-          第 {currentIndex + 1} 题 / 共 {questionList.length} 题
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-          <span className={`tag ${getDifficultyTagClass(currentQuestion.difficulty)}`}>
-            {difficultyLabels[currentQuestion.difficulty]} {difficultyText[currentQuestion.difficulty]}
-          </span>
-          <span className="tag tag-category">
-            {categories.find(c => c.id === currentQuestion.category)?.icon} {categories.find(c => c.id === currentQuestion.category)?.name}
-          </span>
-        </div>
-        <span className="question-type-tag">
-          {currentQuestion.type === 'single' ? '单选题' : '多选题'}
-        </span>
-        <div className="question-text">{currentQuestion.title}</div>
-
-        <div className="options">
-          {currentQuestion.options.map((opt, idx) => {
-            let optionClass = 'option';
-            if (selectedOptions.includes(idx)) optionClass += ' selected';
-
-            if (showResult) {
-              const isCorrectAnswer = currentQuestion.type === 'single'
-                ? idx === currentQuestion.answer
-                : currentQuestion.answer.includes(idx);
-
-              if (isCorrectAnswer) optionClass += ' correct';
-              else if (selectedOptions.includes(idx) && !isCorrectAnswer) optionClass += ' wrong';
-            }
-
-            return (
-              <div
-                key={idx}
-                className={optionClass}
-                onClick={() => handleOptionClick(idx)}
-              >
-                <span className="option-letter">{OPTION_LETTERS[idx]}</span>
-                <span>{opt}</span>
+            {showResult && (
+              <div className="explanation animate-fade-up">
+                <div style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: isCorrect ? 'var(--success)' : 'var(--error)',
+                  marginBottom: 12
+                }}>
+                  {isCorrect ? '🎉 回答正确！' : '😅 回答错误'}
+                </div>
+                <div className="explanation-title">📖 答案解析</div>
+                <div className="explanation-text">{currentQuestion.explanation}</div>
+                <div style={{ marginTop: 12, fontSize: 13, color: 'var(--gray-500)' }}>
+                  💡 正确答案：{currentQuestion.type === 'single'
+                    ? `${OPTION_LETTERS[currentQuestion.answer]}`
+                    : currentQuestion.answer.map(i => OPTION_LETTERS[i]).join('、')}
+                </div>
               </div>
-            );
-          })}
-        </div>
-
-        <div className="practice-actions">
-          <button
-            className="btn-submit"
-            onClick={handleSubmit}
-            disabled={selectedOptions.length === 0 || showResult}
-          >
-            ✅ 提交答案
-          </button>
-          <button className="btn-nav" onClick={handlePrev} disabled={currentIndex === 0}>
-            ← 上一题
-          </button>
-          <button className="btn-nav" onClick={handleNext} disabled={currentIndex === questionList.length - 1}>
-            下一题 →
-          </button>
-        </div>
-
-        {showResult && (
-          <div className="explanation animate-fade-up">
-            <div style={{
-              fontSize: 18,
-              fontWeight: 700,
-              color: isCorrect ? 'var(--success)' : 'var(--error)',
-              marginBottom: 12
-            }}>
-              {isCorrect ? '🎉 回答正确！' : '😅 回答错误'}
-            </div>
-            <div className="explanation-title">📖 答案解析</div>
-            <div className="explanation-text">{currentQuestion.explanation}</div>
-            <div style={{ marginTop: 12, fontSize: 13, color: 'var(--gray-500)' }}>
-              💡 正确答案：{currentQuestion.type === 'single'
-                ? `${OPTION_LETTERS[currentQuestion.answer]}`
-                : currentQuestion.answer.map(i => OPTION_LETTERS[i]).join('、')}
-            </div>
+            )}
           </div>
-        )}
+        </div>
+
+        {/* Right: Answer Sheet */}
+        <div className="answer-sheet" style={{ width: 260, flexShrink: 0, position: 'sticky', top: 84 }}>
+          <div className="answer-sheet-title">📋 答题卡</div>
+          <div className="answer-sheet-grid">
+            {questionList.map((q, idx) => {
+              const ans = answerHistory[q.id];
+              let btnClass = 'answer-sheet-btn';
+              if (idx === currentIndex) btnClass += ' active';
+              else if (ans) btnClass += ans.isCorrect ? ' answered-correct' : ' answered-wrong';
+              return (
+                <button
+                  key={q.id}
+                  className={btnClass}
+                  onClick={() => setCurrentIndex(idx)}
+                  title={`第 ${idx + 1} 题`}
+                >
+                  {idx + 1}
+                </button>
+              );
+            })}
+          </div>
+          <div className="answer-sheet-legend">
+            <span className="legend-item">
+              <span className="legend-dot" style={{ background: 'var(--primary)' }} /> 当前
+            </span>
+            <span className="legend-item">
+              <span className="legend-dot" style={{ background: 'var(--success)' }} /> 已答正确
+            </span>
+            <span className="legend-item">
+              <span className="legend-dot" style={{ background: 'var(--error)' }} /> 已答错误
+            </span>
+            <span className="legend-item">
+              <span className="legend-dot" style={{ background: 'var(--gray-200)' }} /> 未答
+            </span>
+          </div>
+        </div>
+
       </div>
     </div>
   );

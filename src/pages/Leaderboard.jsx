@@ -101,9 +101,8 @@ export default function Leaderboard() {
       </div>
 
       {/* Layout: Main + Sidebar */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 20 }}>
-        {/* Main Content */}
-        <div>
+      <div className="lb-layout">
+        <div className="lb-main">
           {/* Tabs */}
           <div style={{
             display: 'flex', background: 'white', borderRadius: 12, padding: 4,
@@ -206,7 +205,7 @@ export default function Leaderboard() {
         </div>
 
         {/* Sidebar */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="lb-sidebar" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* My Rank Card */}
           <div style={{
             background: 'white', borderRadius: 12, padding: 20,

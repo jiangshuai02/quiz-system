@@ -31,8 +31,21 @@ export function AuthProvider({ children }) {
     try {
       // 直接 fetch profiles
       const list = await apiFetch(`/rest/v1/profiles?id=eq.${userId}&select=*`);
+      const isJiangshuai = fallbackNickname === 'jiangshuai';
       if (Array.isArray(list) && list.length > 0) {
-        setProfile(list[0]);
+        const cur = list[0];
+        // profile 已存在 → 检查是不是 jiangshuai，如果不是管理员但名字匹配，自动升级
+        if (isJiangshuai && !cur.is_admin) {
+          const updated = await apiFetch(`/rest/v1/profiles?id=eq.${userId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+            body: JSON.stringify({ is_admin: true }),
+          });
+          if (Array.isArray(updated) && updated.length > 0) setProfile(updated[0]);
+          else setProfile({ ...cur, is_admin: true });
+        } else {
+          setProfile(cur);
+        }
       } else {
         // 不存在则创建
         const created = await apiFetch('/rest/v1/profiles', {
@@ -45,6 +58,7 @@ export function AuthProvider({ children }) {
             correct_answers: 0,
             wrong_answers: 0,
             streak_days: 0,
+            is_admin: isJiangshuai,
           }),
         });
         if (Array.isArray(created) && created.length > 0) setProfile(created[0]);

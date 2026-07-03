@@ -57,7 +57,7 @@ for (const f of files) {
 }
 const treeRes = await api('POST', `/repos/${REPO}/git/trees`, { base_tree: baseSha, tree });
 const commitRes = await api('POST', `/repos/${REPO}/git/commits`, {
-  message: 'feat: 移动按知识点栏 + 考试开始按钮 + 用户元信息(IP/地址/登录时间)',
+  message: 'feat: 重构登录 - 改成输入名字即用，数据按名字存',
   tree: treeRes.data.sha, parents: [baseSha],
 });
 await api('PATCH', `/repos/${REPO}/git/refs/heads/main`, { sha: commitRes.data.sha });

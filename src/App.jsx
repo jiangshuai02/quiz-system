@@ -6,7 +6,7 @@ import Practice from './pages/Practice';
 import WrongBook from './pages/WrongBook';
 import Stats from './pages/Stats';
 import Exam from './pages/Exam';
-import Auth from './pages/Auth';
+import Welcome from './pages/Welcome';
 import Leaderboard from './pages/Leaderboard';
 import Admin from './pages/Admin';
 import { useAuth } from './contexts/AuthContext';
@@ -51,8 +51,8 @@ function App() {
     );
   }
 
-  if (!user && location.pathname !== '/auth') return <Navigate to="/auth" replace />;
-  if (location.pathname === '/auth') { if (user) return <Navigate to="/" replace />; return <Auth />; }
+  if (!user && location.pathname !== '/welcome') return <Navigate to="/welcome" replace />;
+  if (location.pathname === '/welcome') { if (user) return <Navigate to="/" replace />; return <Welcome />; }
 
   return (
     <div className="app-layout">
@@ -80,7 +80,7 @@ function App() {
                 👤 {profile?.nickname || user?.email?.split('@')[0]}
                 {isAdmin && <span className="navbar-user-admin">👑管理</span>}
               </span>
-              <button className="navbar-logout" onClick={async () => { try { await signOut(); navigate('/auth'); } catch {} }}>
+              <button className="navbar-logout" onClick={async () => { try { await signOut(); navigate('/welcome'); } catch {} }}>
                 退出
               </button>
             </div>

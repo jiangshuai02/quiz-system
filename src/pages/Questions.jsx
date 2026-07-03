@@ -1,24 +1,29 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { questions, categories, getQuestionsByCategory, difficultyLabels, difficultyText } from '../data/questions';
+import { useAuth } from '../contexts/AuthContext';
+import { getWrongAnswers } from '../lib/supabase';
 
 export default function Questions() {
   const navigate = useNavigate();
   const { categoryId } = useParams();
+  const { user } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState(categoryId || 'all');
   const [selectedDifficulty, setSelectedDifficulty] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Load saved answers from localStorage
-  const [answers, setAnswers] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('shuati_answers') || '{}');
-    } catch { return {}; }
-  });
+  const [wrongList, setWrongList] = useState([]);
 
   useEffect(() => {
     if (categoryId) setSelectedCategory(categoryId);
   }, [categoryId]);
+
+  useEffect(() => {
+    if (user) {
+      getWrongAnswers(user.id)
+        .then(setWrongList)
+        .catch(e => console.error('加载错题失败', e));
+    }
+  }, [user]);
 
   const filteredQuestions = useMemo(() => {
     let list = getQuestionsByCategory(selectedCategory);
@@ -36,9 +41,9 @@ export default function Questions() {
   }, [selectedCategory, selectedDifficulty, searchQuery]);
 
   const getQuestionStatus = (questionId) => {
-    const ans = answers[questionId];
-    if (!ans) return 'unanswered';
-    return ans.isCorrect ? 'correct' : 'wrong';
+    const isWrong = wrongList.some(w => w.question_id === questionId);
+    if (isWrong) return 'wrong';
+    return 'unanswered';
   };
 
   const getDifficultyTagClass = (level) => {
@@ -51,10 +56,12 @@ export default function Questions() {
     <div className="questions-page">
       <div className="page-header">
         <h1 className="page-title">📚 全部题库</h1>
-        <p className="page-desc">共 {filteredQuestions.length} 道题目，选择分类开始练习</p>
+        <p className="page-desc">
+          共 {filteredQuestions.length} 道题目
+          {user && <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--success)' }}>☁️ 已登录</span>}
+        </p>
       </div>
 
-      {/* Search */}
       <div style={{ marginBottom: 16 }}>
         <input
           type="text"
@@ -73,45 +80,30 @@ export default function Questions() {
         />
       </div>
 
-      {/* Category Filter */}
       <div className="filter-bar">
-        <button
-          className={`filter-btn ${selectedCategory === 'all' ? 'active' : ''}`}
-          onClick={() => setSelectedCategory('all')}
-        >
+        <button className={`filter-btn ${selectedCategory === 'all' ? 'active' : ''}`} onClick={() => setSelectedCategory('all')}>
           全部
         </button>
         {categories.map(cat => (
-          <button
-            key={cat.id}
-            className={`filter-btn ${selectedCategory === cat.id ? 'active' : ''}`}
-            onClick={() => setSelectedCategory(cat.id)}
-          >
+          <button key={cat.id} className={`filter-btn ${selectedCategory === cat.id ? 'active' : ''}`}
+            onClick={() => setSelectedCategory(cat.id)}>
             {cat.icon} {cat.name}
           </button>
         ))}
       </div>
 
-      {/* Difficulty Filter */}
       <div className="filter-bar">
-        <button
-          className={`filter-btn ${selectedDifficulty === 'all' ? 'active' : ''}`}
-          onClick={() => setSelectedDifficulty('all')}
-        >
+        <button className={`filter-btn ${selectedDifficulty === 'all' ? 'active' : ''}`} onClick={() => setSelectedDifficulty('all')}>
           全部难度
         </button>
         {[1, 2, 3, 4, 5].map(level => (
-          <button
-            key={level}
-            className={`filter-btn ${selectedDifficulty === String(level) ? 'active' : ''}`}
-            onClick={() => setSelectedDifficulty(String(level))}
-          >
+          <button key={level} className={`filter-btn ${selectedDifficulty === String(level) ? 'active' : ''}`}
+            onClick={() => setSelectedDifficulty(String(level))}>
             {difficultyLabels[level]} {difficultyText[level]}
           </button>
         ))}
       </div>
 
-      {/* Question List */}
       {filteredQuestions.length === 0 ? (
         <div className="empty-state">
           <span className="empty-icon">🔍</span>
@@ -121,11 +113,7 @@ export default function Questions() {
       ) : (
         <div className="question-list">
           {filteredQuestions.map(q => (
-            <div
-              key={q.id}
-              className="question-item"
-              onClick={() => navigate(`/practice/${q.id}`)}
-            >
+            <div key={q.id} className="question-item" onClick={() => navigate(`/practice/${q.id}`)}>
               <div className="question-item-left">
                 <div className="question-item-title">{q.title.length > 50 ? q.title.slice(0, 50) + '...' : q.title}</div>
                 <div className="question-item-tags">

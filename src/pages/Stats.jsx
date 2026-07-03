@@ -1,54 +1,78 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { questions, categories, getQuestionsByCategory } from '../data/questions';
+import { useAuth } from '../contexts/AuthContext';
+import { getUserStats, getExamHistory, getWrongAnswers } from '../lib/supabase';
 
 export default function Stats() {
   const navigate = useNavigate();
-  const [answers] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('shuati_answers') || '{}');
-    } catch { return {}; }
-  });
+  const { user } = useAuth();
+  const [profileStats, setProfileStats] = useState(null);
+  const [examHistory, setExamHistory] = useState([]);
+  const [wrongList, setWrongList] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    Promise.all([getUserStats(user.id), getExamHistory(user.id), getWrongAnswers(user.id)])
+      .then(([stats, exams, wrongs]) => {
+        setProfileStats(stats);
+        setExamHistory(exams || []);
+        setWrongList(wrongs || []);
+      })
+      .catch(e => console.error('加载统计失败', e))
+      .finally(() => setLoading(false));
+  }, [user]);
 
   const stats = useMemo(() => {
     const total = questions.length;
-    const answered = Object.keys(answers).length;
-    const correct = Object.values(answers).filter(a => a.isCorrect).length;
-    const wrong = answered - correct;
+    const answered = profileStats?.total_questions || 0;
+    const correct = profileStats?.correct_answers || 0;
+    const wrong = profileStats?.wrong_answers || 0;
     const accuracy = answered > 0 ? Math.round((correct / answered) * 100) : 0;
+    const streak = profileStats?.streak_days || 0;
 
-    // Per-category stats
+    const wrongIds = wrongList.map(w => w.question_id);
+
     const categoryStats = categories.map(cat => {
       const catQuestions = getQuestionsByCategory(cat.id);
       const catTotal = catQuestions.length;
-      let catAnswered = 0;
-      let catCorrect = 0;
-
-      catQuestions.forEach(q => {
-        const ans = answers[q.id];
-        if (ans) {
-          catAnswered++;
-          if (ans.isCorrect) catCorrect++;
-        }
-      });
+      const catAnswered = catQuestions.filter(q => wrongIds.includes(q.id)).length;
+      const catCorrect = catAnswered - catQuestions.filter(q => wrongIds.includes(q.id)).length;
 
       return {
         ...cat,
         total: catTotal,
         answered: catAnswered,
         correct: catCorrect,
-        accuracy: catAnswered > 0 ? Math.round((catCorrect / catAnswered) * 100) : 0,
+        accuracy: catTotal > 0 ? Math.round(((catTotal - catAnswered) / catTotal) * 100) : 0,
       };
     });
 
-    return { total, answered, correct, wrong, accuracy, categoryStats };
-  }, [answers]);
+    return { total, answered, correct, wrong, accuracy, streak, categoryStats };
+  }, [profileStats, wrongList]);
+
+  if (loading) {
+    return (
+      <div className="stats-page">
+        <div className="empty-state">
+          <span className="empty-icon">⏳</span>
+          <p className="empty-text">加载中...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="stats-page">
       <div className="page-header">
         <h1 className="page-title">📊 学习统计</h1>
-        <p className="page-desc">清晰掌握你的学习进度和薄弱环节</p>
+        <p className="page-desc">
+          清晰掌握你的学习进度
+          <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--success)' }}>
+            ☁️ 已云端同步
+          </span>
+        </p>
       </div>
 
       {/* Stats Grid */}
@@ -71,7 +95,49 @@ export default function Stats() {
           </div>
           <div className="stat-card-label">正确率</div>
         </div>
+        <div className="stat-card">
+          <div className="stat-card-value" style={{ color: 'var(--warning)' }}>{stats.streak}</div>
+          <div className="stat-card-label">连续学习天数</div>
+        </div>
       </div>
+
+      {/* Exam History */}
+      {examHistory.length > 0 && (
+        <div className="category-stats">
+          <div className="category-stats-title">📝 最近考试</div>
+          {examHistory.slice(0, 5).map(exam => {
+            const date = new Date(exam.completed_at);
+            const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+            return (
+              <div key={exam.id} className="category-stat-item">
+                <span className="category-stat-icon">📊</span>
+                <div className="category-stat-info">
+                  <div className="category-stat-name">
+                    {exam.category === 'all' ? '全科' : exam.category} - {exam.total_questions}题
+                    <span style={{ fontWeight: 400, color: 'var(--gray-400)', marginLeft: 8, fontSize: 13 }}>
+                      {dateStr}
+                    </span>
+                  </div>
+                  <div className="category-stat-bar">
+                    <div
+                      className="category-stat-fill"
+                      style={{
+                        width: `${exam.score}%`,
+                        background: exam.score >= 80
+                          ? 'linear-gradient(90deg, var(--success), #34d399)'
+                          : exam.score >= 60
+                            ? 'linear-gradient(90deg, var(--warning), #fbbf24)'
+                            : 'linear-gradient(90deg, var(--error), #f87171)',
+                      }}
+                    />
+                  </div>
+                </div>
+                <span className="category-stat-pct">{exam.score}分</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Progress Overview */}
       <div className="category-stats">
@@ -104,7 +170,7 @@ export default function Stats() {
                 width: `${stats.accuracy}%`,
                 background: stats.accuracy >= 70
                   ? 'linear-gradient(90deg, var(--success), #34d399)'
-                  : 'linear-gradient(90deg, var(--error), var(--warning))'
+                  : 'linear-gradient(90deg, var(--error), var(--warning))',
               }}
             />
           </div>
@@ -121,7 +187,7 @@ export default function Stats() {
               <div className="category-stat-name">
                 {cat.name}
                 <span style={{ fontWeight: 400, color: 'var(--gray-400)', marginLeft: 8, fontSize: 13 }}>
-                  {cat.answered}/{cat.total} 题
+                  {cat.total} 题
                 </span>
               </div>
               <div className="category-stat-bar">
@@ -133,7 +199,7 @@ export default function Stats() {
                       ? 'linear-gradient(90deg, var(--success), #34d399)'
                       : cat.accuracy >= 40
                         ? 'linear-gradient(90deg, var(--warning), #fbbf24)'
-                        : 'linear-gradient(90deg, var(--error), #f87171)'
+                        : 'linear-gradient(90deg, var(--error), #f87171)',
                   }}
                 />
               </div>

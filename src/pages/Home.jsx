@@ -1,15 +1,23 @@
 import { useNavigate } from 'react-router-dom';
 import { categories, questions } from '../data/questions';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Home() {
   const navigate = useNavigate();
+  const { user, profile } = useAuth();
   const totalQuestions = questions.length;
+  const totalAnswered = profile?.total_questions || 0;
+  const accuracy = profile?.total_questions > 0
+    ? Math.round((profile.correct_answers / profile.total_questions) * 100)
+    : 0;
+  const streak = profile?.streak_days || 0;
 
   const features = [
     { icon: '📖', name: '海量题库', desc: `${totalQuestions} 道精选面试题，覆盖前端、React、Vue、算法等核心领域` },
     { icon: '🎯', name: '模拟考试', desc: '模拟真实面试环境，限时答题，检验真实水平' },
     { icon: '📊', name: '学习统计', desc: '可视化学习数据，清晰掌握各知识点掌握情况' },
     { icon: '📝', name: '错题本', desc: '自动记录错题，针对性复习，高效攻克薄弱环节' },
+    { icon: '☁️', name: '云端同步', desc: '登录账号即可多设备同步进度，数据永不丢失' },
   ];
 
   return (
@@ -30,10 +38,28 @@ export default function Home() {
             <span className="hero-stat-value">{categories.length}</span>
             <span className="hero-stat-label">知识分类</span>
           </div>
-          <div className="hero-stat">
-            <span className="hero-stat-value">100%</span>
-            <span className="hero-stat-label">免费刷题</span>
-          </div>
+          {user && (
+            <>
+              <div className="hero-stat">
+                <span className="hero-stat-value">{totalAnswered}</span>
+                <span className="hero-stat-label">已刷题数</span>
+              </div>
+              <div className="hero-stat">
+                <span className="hero-stat-value" style={{ color: accuracy >= 70 ? '#86efac' : '#fca5a5' }}>{accuracy}%</span>
+                <span className="hero-stat-label">正确率</span>
+              </div>
+              <div className="hero-stat">
+                <span className="hero-stat-value">🔥 {streak}</span>
+                <span className="hero-stat-label">连续天数</span>
+              </div>
+            </>
+          )}
+          {!user && (
+            <div className="hero-stat">
+              <span className="hero-stat-value">100%</span>
+              <span className="hero-stat-label">免费刷题</span>
+            </div>
+          )}
         </div>
         <div className="hero-actions animate-fade-up stagger-3">
           <button className="btn btn-primary" onClick={() => navigate('/questions')}>

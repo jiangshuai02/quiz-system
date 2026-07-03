@@ -1,28 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { questions, categories, difficultyLabels, difficultyText, getQuestionsByCategory } from '../data/questions';
+import { questions, categories, difficultyLabels, difficultyText } from '../data/questions';
+import { useAuth } from '../contexts/AuthContext';
+import { addWrongAnswer, recordAnswer, updateStudyStats } from '../lib/supabase';
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
 export default function Practice() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { questionId } = useParams();
 
-  // Load saved answers
-  const [answers, setAnswers] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('shuati_answers') || '{}');
-    } catch { return {}; }
-  });
-
-  // Build question list - either from a category or all
-  const [questionList, setQuestionList] = useState(() => {
-    if (questionId) {
-      return questions;
-    }
-    return questions;
-  });
-
+  const [questionList] = useState(questions);
   const [currentIndex, setCurrentIndex] = useState(() => {
     if (questionId) {
       return questions.findIndex(q => q.id === parseInt(questionId));
@@ -34,15 +23,14 @@ export default function Practice() {
   const [selectedOptions, setSelectedOptions] = useState([]);
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+  const [answerHistory, setAnswerHistory] = useState({});
 
-  // Reset state when question changes
   useEffect(() => {
     setSelectedOptions([]);
     setShowResult(false);
     setIsCorrect(false);
   }, [currentIndex]);
 
-  // If navigating from question list with specific ID
   useEffect(() => {
     if (questionId && currentIndex === -1) {
       const idx = questions.findIndex(q => q.id === parseInt(questionId));
@@ -64,7 +52,7 @@ export default function Practice() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (selectedOptions.length === 0) return;
 
     const correct = currentQuestion.type === 'single'
@@ -74,17 +62,28 @@ export default function Practice() {
     setIsCorrect(correct);
     setShowResult(true);
 
-    // Save answer
-    const newAnswers = {
-      ...answers,
-      [currentQuestion.id]: {
-        selected: selectedOptions,
-        isCorrect: correct,
-        answer: currentQuestion.answer,
+    // 记录到本地
+    setAnswerHistory(prev => ({
+      ...prev,
+      [currentQuestion.id]: { selected: selectedOptions, isCorrect: correct }
+    }));
+
+    // 同步到云端
+    if (user) {
+      try {
+        await recordAnswer(user.id, currentQuestion.id, correct);
+        if (!correct) {
+          await addWrongAnswer(
+            user.id,
+            currentQuestion.id,
+            selectedOptions.map(i => OPTION_LETTERS[i]).join(',')
+          );
+        }
+        await updateStudyStats(user.id, correct);
+      } catch (e) {
+        console.error('同步失败', e);
       }
-    };
-    setAnswers(newAnswers);
-    localStorage.setItem('shuati_answers', JSON.stringify(newAnswers));
+    }
   };
 
   const handleNext = () => {
@@ -105,7 +104,6 @@ export default function Practice() {
     return 'tag-difficulty-hard';
   };
 
-  // If no question found
   if (!currentQuestion) {
     return (
       <div className="practice-page">
@@ -122,12 +120,8 @@ export default function Practice() {
     );
   }
 
-  const hasAnswer = answers[currentQuestion.id];
-  const isAnswered = showResult || !!hasAnswer;
-
-  // Calculate completion statistics
-  const answeredCount = Object.keys(answers).length;
-  const correctCount = Object.values(answers).filter(a => a.isCorrect).length;
+  const answeredCount = Object.keys(answerHistory).length;
+  const correctCount = Object.values(answerHistory).filter(a => a.isCorrect).length;
 
   return (
     <div className="practice-page">
@@ -147,6 +141,7 @@ export default function Practice() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <span style={{ fontSize: 14, color: 'var(--gray-500)' }}>
             ✅ 已答 {answeredCount} 题 · 正确 {correctCount} 题
+            {user && <span style={{ marginLeft: 8, color: 'var(--success)' }}>☁️</span>}
           </span>
           <button className="btn-nav" onClick={() => navigate('/questions')}>
             ← 返回题库
@@ -159,7 +154,7 @@ export default function Practice() {
         <div className="answer-sheet-title">📋 答题卡</div>
         <div className="answer-sheet-grid">
           {questionList.map((q, idx) => {
-            const ans = answers[q.id];
+            const ans = answerHistory[q.id];
             let btnClass = 'answer-sheet-btn';
             if (idx === currentIndex) btnClass += ' active';
             else if (ans) btnClass += ans.isCorrect ? ' answered-correct' : ' answered-wrong';
@@ -209,7 +204,6 @@ export default function Practice() {
         </span>
         <div className="question-text">{currentQuestion.title}</div>
 
-        {/* Options */}
         <div className="options">
           {currentQuestion.options.map((opt, idx) => {
             let optionClass = 'option';
@@ -237,7 +231,6 @@ export default function Practice() {
           })}
         </div>
 
-        {/* Actions */}
         <div className="practice-actions">
           <button
             className="btn-submit"
@@ -254,7 +247,6 @@ export default function Practice() {
           </button>
         </div>
 
-        {/* Explanation */}
         {showResult && (
           <div className="explanation animate-fade-up">
             <div style={{

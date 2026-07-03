@@ -1,16 +1,18 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { questions, categories, getQuestionsByCategory, difficultyLabels, difficultyText } from '../data/questions';
+import { questions, categories, getQuestionsByCategory } from '../data/questions';
+import { useAuth } from '../contexts/AuthContext';
+import { saveExamResult } from '../lib/supabase';
 
-const EXAM_DURATION = 600; // 10 minutes in seconds
+const EXAM_DURATION = 600;
 const EXAM_QUESTION_COUNT = 10;
-
 const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
 export default function Exam() {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
-  const [examState, setExamState] = useState('setup'); // setup | running | finished
+  const [examState, setExamState] = useState('setup');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [examQuestions, setExamQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -18,17 +20,16 @@ export default function Exam() {
   const [answers, setAnswers] = useState({});
   const [timeLeft, setTimeLeft] = useState(EXAM_DURATION);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [startTime, setStartTime] = useState(null);
   const timerRef = useRef(null);
 
   const currentQuestion = examQuestions[currentIndex];
 
-  // Reset selection when question changes
   useEffect(() => {
     setSelectedOptions([]);
     setShowAnswer(false);
   }, [currentIndex]);
 
-  // Timer
   useEffect(() => {
     if (examState !== 'running') return;
 
@@ -47,13 +48,7 @@ export default function Exam() {
   }, [examState]);
 
   const handleStartExam = () => {
-    let pool;
-    if (selectedCategory === 'all') {
-      pool = [...questions];
-    } else {
-      pool = getQuestionsByCategory(selectedCategory);
-    }
-
+    let pool = selectedCategory === 'all' ? [...questions] : getQuestionsByCategory(selectedCategory);
     if (pool.length === 0) return;
 
     const shuffled = [...pool].sort(() => Math.random() - 0.5);
@@ -65,39 +60,65 @@ export default function Exam() {
     setAnswers({});
     setTimeLeft(EXAM_DURATION);
     setShowAnswer(false);
+    setStartTime(Date.now());
     setExamState('running');
   };
 
-  const handleFinishExam = () => {
+  const handleFinishExam = async () => {
     clearInterval(timerRef.current);
     setExamState('finished');
-  };
 
-  const handleOptionClick = (optIndex) => {
-    if (showAnswer) return;
-
-    if (currentQuestion.type === 'single') {
-      setSelectedOptions([optIndex]);
-    } else {
-      setSelectedOptions(prev =>
-        prev.includes(optIndex)
-          ? prev.filter(i => i !== optIndex)
-          : [...prev, optIndex]
-      );
+    if (user) {
+      try {
+        const result = examResult;
+        if (result) {
+          const duration = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
+          await saveExamResult(user.id, {
+            category: selectedCategory,
+            total: result.total,
+            correct: result.correct,
+            wrong: result.wrong,
+            unanswered: result.unanswered,
+            score: result.score,
+            duration,
+          });
+        }
+      } catch (e) {
+        console.error('保存考试结果失败', e);
+      }
     }
   };
 
+  const examResult = useMemo(() => {
+    if (examState !== 'finished') return null;
+
+    let correct = 0, wrong = 0, unanswered = 0;
+    examQuestions.forEach(q => {
+      const ans = answers[q.id];
+      if (!ans) unanswered++;
+      else if (ans.isCorrect) correct++;
+      else wrong++;
+    });
+
+    return {
+      correct, wrong, unanswered, total: examQuestions.length,
+      score: Math.round((correct / examQuestions.length) * 100),
+    };
+  }, [examState, answers, examQuestions]);
+
+  const handleOptionClick = (optIndex) => {
+    if (showAnswer) return;
+    if (currentQuestion.type === 'single') setSelectedOptions([optIndex]);
+    else setSelectedOptions(prev => prev.includes(optIndex) ? prev.filter(i => i !== optIndex) : [...prev, optIndex]);
+  };
+
   const handleNextQuestion = () => {
-    // Save answer
     if (selectedOptions.length > 0) {
       const isCorrect = currentQuestion.type === 'single'
         ? selectedOptions[0] === currentQuestion.answer
         : JSON.stringify([...selectedOptions].sort()) === JSON.stringify([...currentQuestion.answer].sort());
 
-      setAnswers(prev => ({
-        ...prev,
-        [currentQuestion.id]: { selected: selectedOptions, isCorrect }
-      }));
+      setAnswers(prev => ({ ...prev, [currentQuestion.id]: { selected: selectedOptions, isCorrect } }));
     }
 
     if (currentIndex < examQuestions.length - 1) {
@@ -107,41 +128,12 @@ export default function Exam() {
     }
   };
 
-  // Compute results
-  const examResult = useMemo(() => {
-    if (examState !== 'finished') return null;
-
-    let correct = 0;
-    let wrong = 0;
-    let unanswered = 0;
-
-    examQuestions.forEach(q => {
-      const ans = answers[q.id];
-      if (!ans) {
-        unanswered++;
-      } else if (ans.isCorrect) {
-        correct++;
-      } else {
-        wrong++;
-      }
-    });
-
-    return { correct, wrong, unanswered, total: examQuestions.length, score: Math.round((correct / examQuestions.length) * 100) };
-  }, [examState, answers, examQuestions]);
-
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const getDifficultyTagClass = (level) => {
-    if (level <= 2) return 'tag-difficulty-easy';
-    if (level <= 3) return 'tag-difficulty-medium';
-    return 'tag-difficulty-hard';
-  };
-
-  // --- Render ---
   if (examState === 'setup') {
     const categoryOptions = [
       { id: 'all', name: '全科目随机', icon: '📚' },
@@ -186,6 +178,7 @@ export default function Exam() {
             <div>• 共 {EXAM_QUESTION_COUNT} 道题目，限时 10 分钟</div>
             <div>• 可随时交卷，系统自动计算成绩</div>
             <div>• 提交后无法修改答案</div>
+            {user && <div style={{ marginTop: 8, color: 'var(--success)' }}>☁️ 考试结果将自动同步到云端</div>}
           </div>
         </div>
       </div>
@@ -202,6 +195,7 @@ export default function Exam() {
           <div className="exam-result-score">{examResult.score}<span style={{ fontSize: 24, color: 'var(--gray-400)' }}>分</span></div>
           <div className="exam-result-label">
             {examResult.score >= 80 ? '太棒了，表现优异！' : examResult.score >= 60 ? '不错，继续加油！' : '需要多多练习哦！'}
+            {user && <span style={{ display: 'block', marginTop: 8, fontSize: 13, color: 'var(--success)' }}>☁️ 已保存到云端</span>}
           </div>
 
           <div className="stats-grid" style={{ maxWidth: 500, margin: '24px auto' }}>
@@ -231,13 +225,16 @@ export default function Exam() {
               onClick={() => navigate('/wrongbook')}>
               📕 查看错题
             </button>
+            <button className="btn btn-outline" style={{ borderColor: 'var(--gray-300)', color: 'var(--gray-700)' }}
+              onClick={() => navigate('/stats')}>
+              📊 学习统计
+            </button>
           </div>
         </div>
       </div>
     );
   }
 
-  // Running state
   return (
     <div className="exam-page">
       <div className="practice-header">
@@ -246,10 +243,7 @@ export default function Exam() {
             第 {currentIndex + 1} / {examQuestions.length} 题
           </span>
           <div className="progress-bar">
-            <div
-              className="progress-fill"
-              style={{ width: `${((currentIndex + 1) / examQuestions.length) * 100}%` }}
-            />
+            <div className="progress-fill" style={{ width: `${((currentIndex + 1) / examQuestions.length) * 100}%` }} />
           </div>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -263,7 +257,6 @@ export default function Exam() {
         </div>
       </div>
 
-      {/* Question */}
       {currentQuestion && (
         <div className="practice-card">
           <div className="question-type-tag">
@@ -275,15 +268,6 @@ export default function Exam() {
             {currentQuestion.options.map((opt, idx) => {
               let optionClass = 'option';
               if (selectedOptions.includes(idx)) optionClass += ' selected';
-
-              if (showAnswer) {
-                const isCorrectAnswer = currentQuestion.type === 'single'
-                  ? idx === currentQuestion.answer
-                  : currentQuestion.answer.includes(idx);
-
-                if (isCorrectAnswer) optionClass += ' correct';
-                else if (selectedOptions.includes(idx) && !isCorrectAnswer) optionClass += ' wrong';
-              }
 
               return (
                 <div
@@ -299,11 +283,7 @@ export default function Exam() {
           </div>
 
           <div className="practice-actions">
-            <button
-              className="btn-submit"
-              onClick={handleNextQuestion}
-              disabled={selectedOptions.length === 0}
-            >
+            <button className="btn-submit" onClick={handleNextQuestion} disabled={selectedOptions.length === 0}>
               {currentIndex < examQuestions.length - 1 ? '下一题 →' : '📊 交卷'}
             </button>
           </div>

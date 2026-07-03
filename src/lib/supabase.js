@@ -202,3 +202,106 @@ export async function updateStudyStats(userId, isCorrect) {
 
   await updateProfile(userId, newStats);
 }
+
+/**
+ * 排行榜
+ */
+export async function getLeaderboard(type = 'total') {
+  const viewMap = {
+    total: 'leaderboard',
+    weekly: 'leaderboard_weekly',
+    monthly: 'leaderboard_monthly',
+  };
+  const viewName = viewMap[type] || 'leaderboard';
+  const { data, error } = await supabase
+    .from(viewName)
+    .select('*')
+    .limit(50);
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * 管理员 - 所有用户
+ */
+export async function getAllUsers() {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .order('total_questions', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * 管理员 - 所有考试记录
+ */
+export async function getAllExamRecords(limit = 50) {
+  const { data, error } = await supabase
+    .from('exam_records')
+    .select('*')
+    .order('completed_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * 管理员 - 考试统计
+ */
+export async function getExamStatistics() {
+  const { data, error } = await supabase
+    .from('exam_statistics')
+    .select('*')
+    .order('total_exams', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * 检查用户是否为管理员
+ */
+export async function checkIsAdmin(userId) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.is_admin === true;
+}
+
+/**
+ * 获取所有答题记录数
+ */
+export async function getTotalAnswerCount() {
+  const { count, error } = await supabase
+    .from('answer_records')
+    .select('*', { count: 'exact', head: true });
+  if (error) throw error;
+  return count || 0;
+}
+
+/**
+ * 获取总用户数
+ */
+export async function getTotalUserCount() {
+  const { count, error } = await supabase
+    .from('profiles')
+    .select('*', { count: 'exact', head: true });
+  if (error) throw error;
+  return count || 0;
+}
+
+/**
+ * 获取每日注册/答题统计（简化版）
+ */
+export async function getDailyStats() {
+  const { data, error } = await supabase
+    .from('daily_stats')
+    .select('*')
+    .order('study_date', { ascending: false })
+    .limit(30);
+  if (error) throw error;
+  return data || [];
+}

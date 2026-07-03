@@ -1,4 +1,5 @@
 import { Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import Home from './pages/Home';
 import Questions from './pages/Questions';
 import Practice from './pages/Practice';
@@ -6,15 +7,27 @@ import WrongBook from './pages/WrongBook';
 import Stats from './pages/Stats';
 import Exam from './pages/Exam';
 import Auth from './pages/Auth';
+import Leaderboard from './pages/Leaderboard';
+import Admin from './pages/Admin';
 import { useAuth } from './contexts/AuthContext';
+import { checkIsAdmin } from './lib/supabase';
 import './App.css';
 
 function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, profile, signOut, loading } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  const isActive = (path) => location.pathname === path ? 'active' : '';
+  useEffect(() => {
+    if (user) checkIsAdmin(user.id).then(setIsAdmin).catch(() => setIsAdmin(false));
+    else setIsAdmin(false);
+  }, [user]);
+
+  const isActive = (path) => {
+    if (path === '/') return location.pathname === '/' ? 'active' : '';
+    return location.pathname.startsWith(path) ? 'active' : '';
+  };
 
   const handleSignOut = async () => {
     try {
@@ -25,7 +38,6 @@ function App() {
     }
   };
 
-  // 加载中显示占位
   if (loading) {
     return (
       <div style={{
@@ -43,12 +55,10 @@ function App() {
     );
   }
 
-  // 未登录跳转到登录页（Auth 页面独立显示，不显示 navbar）
   if (!user && location.pathname !== '/auth') {
     return <Navigate to="/auth" replace />;
   }
 
-  // 登录页（独立布局）
   if (location.pathname === '/auth') {
     if (user) return <Navigate to="/" replace />;
     return <Auth />;
@@ -58,39 +68,38 @@ function App() {
     <div className="app-layout">
       <nav className="navbar">
         <div className="navbar-inner">
-          <Link to="/" className="navbar-logo">
-            <span className="navbar-logo-icon">📚</span>
-            <span>王大拿刷题宝</span>
+          <Link to="/" className="navbar-logo" style={{ gap: 6 }}>
+            <span style={{ fontSize: 22 }}>📚</span>
+            <span style={{ fontSize: 16 }}>刷题宝</span>
           </Link>
-          <div className="navbar-links">
+          <div className="navbar-links" style={{ gap: 2 }}>
             <Link to="/" className={`navbar-link ${isActive('/')}`}>首页</Link>
-            <Link to="/questions" className={`navbar-link ${isActive('/questions')}`}>全部题库</Link>
-            <Link to="/exam" className={`navbar-link ${isActive('/exam')}`}>模拟考试</Link>
-            <Link to="/wrongbook" className={`navbar-link ${isActive('/wrongbook')}`}>错题本</Link>
-            <Link to="/stats" className={`navbar-link ${isActive('/stats')}`}>学习统计</Link>
+            <Link to="/questions" className={`navbar-link ${isActive('/questions')}`}>题库</Link>
+            <Link to="/exam" className={`navbar-link ${isActive('/exam')}`}>考试</Link>
+            <Link to="/leaderboard" className={`navbar-link ${isActive('/leaderboard')}`}>排行</Link>
+            <Link to="/wrongbook" className={`navbar-link ${isActive('/wrongbook')}`}>错题</Link>
+            <Link to="/stats" className={`navbar-link ${isActive('/stats')}`}>统计</Link>
+            {isAdmin && (
+              <Link to="/admin" className={`navbar-link ${isActive('/admin')}`}
+                style={{ color: '#f59e0b', fontWeight: 600 }}>
+                管理
+              </Link>
+            )}
             <div style={{
-              marginLeft: 12,
-              paddingLeft: 12,
+              marginLeft: 8, paddingLeft: 8,
               borderLeft: '1px solid var(--gray-200)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
+              display: 'flex', alignItems: 'center', gap: 6,
             }}>
-              <span style={{ fontSize: 13, color: 'var(--gray-600)' }}>
+              <span style={{ fontSize: 13, color: 'var(--gray-600)', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 👤 {profile?.nickname || user?.email?.split('@')[0]}
               </span>
               <button
                 onClick={handleSignOut}
                 style={{
-                  padding: '6px 12px',
-                  background: 'transparent',
-                  color: 'var(--gray-600)',
-                  border: '1px solid var(--gray-200)',
-                  borderRadius: 6,
-                  fontSize: 12,
-                  cursor: 'pointer',
+                  padding: '4px 10px', background: 'transparent',
+                  color: 'var(--gray-500)', border: '1px solid var(--gray-200)',
+                  borderRadius: 6, fontSize: 11, cursor: 'pointer',
                 }}
-                title="退出登录"
               >
                 退出
               </button>
@@ -99,7 +108,7 @@ function App() {
         </div>
       </nav>
 
-      <main className="app-main">
+      <main className="app-main" style={{ background: '#f5f5f5' }}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/questions" element={<Questions />} />
@@ -109,13 +118,11 @@ function App() {
           <Route path="/exam" element={<Exam />} />
           <Route path="/wrongbook" element={<WrongBook />} />
           <Route path="/stats" element={<Stats />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-
-      <footer className="footer">
-        <p className="footer-text">© 2026 王大拿刷题宝 — 面试刷题，轻松拿 Offer 🚀</p>
-      </footer>
     </div>
   );
 }

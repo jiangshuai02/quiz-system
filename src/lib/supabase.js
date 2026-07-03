@@ -9,7 +9,31 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     autoRefreshToken: true,
     storage: window.localStorage,
   },
+  global: {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+    },
+  },
 });
+
+// 直接 fetch 工具（绕过 supabase-js 的 RLS 问题）
+async function apiFetch(path, options = {}) {
+  const url = `${SUPABASE_URL}${path}`;
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API ${res.status}: ${text.slice(0, 200)}`);
+  }
+  return res.json();
+}
 
 /**
  * 错题管理
@@ -204,67 +228,54 @@ export async function updateStudyStats(userId, isCorrect) {
 }
 
 /**
- * 排行榜 - 直接查 profiles + answer_records 计算（不依赖视图）
+ * 排行榜 - 直接查 profiles + answer_records 计算
  */
 export async function getLeaderboard(type = 'total') {
-  // 1. 获取所有用户
-  const { data: profiles, error: pe } = await supabase
-    .from('profiles')
-    .select('id, nickname, total_questions, correct_answers, wrong_answers, streak_days, last_study_date, created_at')
-    .order('total_questions', { ascending: false })
-    .limit(100);
-  if (pe) { console.warn('getLeaderboard profiles:', pe.message); return []; }
-  if (!profiles) return [];
+  try {
+    const profiles = await apiFetch('/rest/v1/profiles?select=id,nickname,total_questions,correct_answers,wrong_answers,streak_days,last_study_date&order=total_questions.desc&limit=100');
+    if (!profiles || profiles.length === 0) return [];
 
-  // 2. 获取答题记录（计算积分用）
-  const { data: records } = await supabase
-    .from('answer_records')
-    .select('user_id, is_correct, answered_at');
+    let records = [];
+    try {
+      records = await apiFetch('/rest/v1/answer_records?select=user_id,is_correct,answered_at&limit=10000');
+    } catch {}
 
-  // 3. 计算每个用户的积分
-  const scoreMap = {};
-  (records || []).forEach(r => {
-    if (!scoreMap[r.user_id]) scoreMap[r.user_id] = { correct: 0, total: 0, dates: new Set() };
-    if (r.is_correct) scoreMap[r.user_id].correct++;
-    scoreMap[r.user_id].total++;
-    scoreMap[r.user_id].dates.add((r.answered_at || '').slice(0, 10));
-  });
+    const scoreMap = {};
+    (records || []).forEach(r => {
+      if (!scoreMap[r.user_id]) scoreMap[r.user_id] = { correct: 0, total: 0, dates: new Set() };
+      if (r.is_correct) scoreMap[r.user_id].correct++;
+      scoreMap[r.user_id].total++;
+      if (r.answered_at) scoreMap[r.user_id].dates.add(r.answered_at.slice(0, 10));
+    });
 
-  // 4. 组装数据
-  const result = profiles.map(p => {
-    const s = scoreMap[p.id] || { correct: 0, total: 0, dates: new Set() };
-    const isCorrect = s.correct;
-    const total = s.total;
-    const accuracy = total > 0 ? Math.round((isCorrect / total) * 100) : 0;
-    const total_score = isCorrect * 10 + total * 2 + s.dates.size * 5;
-    return {
-      user_id: p.id,
-      nickname: p.nickname,
-      total_answered: total,
-      correct_answers: isCorrect,
-      wrong_answers: total - isCorrect,
-      accuracy,
-      active_days: s.dates.size,
-      total_score,
-    };
-  });
-
-  // 5. 排序
-  result.sort((a, b) => b.total_score - a.total_score);
-  return result.slice(0, 50);
+    return profiles.map(p => {
+      const s = scoreMap[p.id] || { correct: 0, total: 0, dates: new Set() };
+      const accuracy = s.total > 0 ? Math.round((s.correct / s.total) * 100) : 0;
+      return {
+        user_id: p.id, nickname: p.nickname,
+        total_answered: s.total, correct_answers: s.correct,
+        wrong_answers: s.total - s.correct, accuracy,
+        active_days: s.dates.size,
+        total_score: s.correct * 10 + s.total * 2 + s.dates.size * 5,
+      };
+    }).sort((a, b) => b.total_score - a.total_score).slice(0, 50);
+  } catch (e) {
+    console.warn('getLeaderboard failed:', e.message);
+    return [];
+  }
 }
 
 /**
  * 管理员 - 所有用户
  */
 export async function getAllUsers() {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .order('total_questions', { ascending: false })
-    .limit(100);
-  if (error) { console.warn('getAllUsers failed:', error); return []; }
-  return data || [];
+  try {
+    const data = await apiFetch('/rest/v1/profiles?select=*&order=total_questions.desc');
+    return data || [];
+  } catch (e) {
+    console.warn('getAllUsers failed:', e.message);
+    return [];
+  }
 }
 
 /**

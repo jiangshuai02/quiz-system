@@ -90,21 +90,7 @@ export default function Questions() {
         />
       </div>
 
-      <div className="filter-bar">
-        <button className={`filter-btn ${selectedCategory === 'all' ? 'active' : ''}`}
-          onClick={() => setSelectedCategory('all')}>
-          全部
-        </button>
-        {categories.map(cat => (
-          <button key={cat.id} className={`filter-btn ${selectedCategory === cat.id ? 'active' : ''}`}
-            onClick={() => setSelectedCategory(cat.id)}
-            title={`筛选 ${cat.name} 题目`}>
-            {cat.icon} {cat.name}
-          </button>
-        ))}
-      </div>
-
-      {/* 新增：按知识点刷题快捷栏 */}
+      {/* 按知识点刷题快捷栏 - 移到"全部"上面 */}
       <div className="quick-practice-bar">
         <div className="quick-practice-title">
           <span className="quick-practice-icon">🏷️</span>
@@ -122,6 +108,20 @@ export default function Questions() {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="filter-bar">
+        <button className={`filter-btn ${selectedCategory === 'all' ? 'active' : ''}`}
+          onClick={() => setSelectedCategory('all')}>
+          全部
+        </button>
+        {categories.map(cat => (
+          <button key={cat.id} className={`filter-btn ${selectedCategory === cat.id ? 'active' : ''}`}
+            onClick={() => setSelectedCategory(cat.id)}
+            title={`筛选 ${cat.name} 题目`}>
+            {cat.icon} {cat.name}
+          </button>
+        ))}
       </div>
 
       <div className="filter-bar">

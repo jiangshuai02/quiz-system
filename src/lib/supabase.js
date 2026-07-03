@@ -17,7 +17,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 
 // 直接 fetch 工具（绕过 supabase-js 的 RLS 问题）
-async function apiFetch(path, options = {}) {
+export async function apiFetch(path, options = {}) {
   const url = `${SUPABASE_URL}${path}`;
   const res = await fetch(url, {
     ...options,

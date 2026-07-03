@@ -200,6 +200,13 @@ export default function Exam() {
             <div>• 提交后无法修改答案</div>
             {user && <div style={{ marginTop: 8, color: '#10b981' }}>☁️ 考试结果将自动同步到云端</div>}
           </div>
+
+          <div style={{ marginTop: 20, textAlign: 'center' }}>
+            <button className="btn btn-primary" onClick={handleStartExam}
+              style={{ padding: '14px 48px', fontSize: 18, borderRadius: 10 }}>
+              🚀 开始考试
+            </button>
+          </div>
         </div>
       </div>
     );

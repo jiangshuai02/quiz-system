@@ -7,6 +7,7 @@ import {
   getAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
   getAdminQuestions, createAdminQuestion, updateAdminQuestion, deleteAdminQuestion,
   getAdminCategories, createAdminCategory, updateAdminCategory, deleteAdminCategory,
+  apiFetch,
 } from '../lib/supabase';
 import { categories as staticCategories } from '../data/questions';
 import { supabase } from '../lib/supabase';
@@ -29,6 +30,7 @@ export default function Admin() {
   const [msg, setMsg] = useState('');
 
   const [users, setUsers] = useState([]);
+  const [userMeta, setUserMeta] = useState({}); // email/last_sign_in_at/ip/location by user_id
   const [exams, setExams] = useState([]);
   const [stats, setStats] = useState([]);
   const [totalAnswers, setTotalAnswers] = useState(0);
@@ -74,9 +76,37 @@ export default function Admin() {
         getAnnouncements(), getAdminQuestions(), getAdminCategories(),
       ]);
       const [u, e, s, ta, tu, st, ann, aq, ac] = results.map(r => r.status === 'fulfilled' ? r.value : []);
-      setUsers(u || []); setExams(e || []); setStats(s || []); setTotalAnswers(ta || 0); setTotalUsers(tu || 0);
+      const userList = u || [];
+      setUsers(userList); setExams(e || []); setStats(s || []); setTotalAnswers(ta || 0); setTotalUsers(tu || 0);
       setSettings(st || {}); setAnnouncements(ann || []); setAdminQuestions(aq || []); setAdminCategories(ac || []);
       if (st) { setEditTitle(st.site_title || ''); setEditFooter(st.site_footer || ''); setEditDesc(st.site_description || ''); }
+
+      // 加载每个用户的登录元信息（email + 最后登录 + 尝试查 IP/地址）
+      const meta = {};
+      await Promise.all(userList.map(async (usr) => {
+        try {
+          const data = await apiFetch(`/auth/v1/admin/users/${usr.id}`);
+          if (data) {
+            meta[usr.id] = {
+              email: data.email,
+              last_sign_in_at: data.last_sign_in_at,
+              ip: data.last_sign_in_ip || data.app_metadata?.ip,
+            };
+          }
+        } catch {}
+      }));
+      // 用 ipapi.co 批量查地址（用 admin user 自己的 IP 兜底）
+      for (const [uid, m] of Object.entries(meta)) {
+        if (m.ip && !m.location) {
+          try {
+            const loc = await fetch(`https://ipapi.co/${m.ip}/json/`).then(r => r.json()).catch(() => ({}));
+            if (loc && !loc.error) {
+              meta[uid].location = [loc.country, loc.region, loc.city].filter(Boolean).join(' ');
+            }
+          } catch {}
+        }
+      }
+      setUserMeta(meta);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -740,28 +770,43 @@ D. 脚本语言
                 <div style={{ display: window.innerWidth >= 768 ? 'block' : 'none', overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead><tr style={{ borderBottom: '2px solid #e5e7eb' }}>
-                      <th style={{ padding: '10px 8px', textAlign: 'left', color: '#6b7280', fontWeight: 600 }}>昵称</th>
+                      <th style={{ padding: '10px 8px', textAlign: 'left', color: '#6b7280', fontWeight: 600 }}>昵称/邮箱</th>
+                      <th style={{ padding: '10px 8px', textAlign: 'left', color: '#6b7280', fontWeight: 600 }}>登录时间</th>
+                      <th style={{ padding: '10px 8px', textAlign: 'left', color: '#6b7280', fontWeight: 600 }}>IP/地址</th>
                       <th style={{ padding: '10px 8px', textAlign: 'center', color: '#6b7280', fontWeight: 600 }}>答题</th>
                       <th style={{ padding: '10px 8px', textAlign: 'center', color: '#6b7280', fontWeight: 600 }}>正确率</th>
-                      <th style={{ padding: '10px 8px', textAlign: 'center', color: '#6b7280', fontWeight: 600 }}>🔥连续</th>
                       <th style={{ padding: '10px 8px', textAlign: 'center', color: '#6b7280', fontWeight: 600 }}>身份</th>
                       <th style={{ padding: '10px 8px', textAlign: 'center', color: '#6b7280', fontWeight: 600 }}>操作</th>
                     </tr></thead>
                     <tbody>
                       {users.map(u => {
                         const isMe = u.id === user?.id;
+                        const meta = userMeta[u.id] || {};
                         return (
                           <tr key={u.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                             <td style={{ padding: '10px 8px', fontWeight: 500 }}>
                               {u.nickname || '匿名'}
                               {u.is_admin && <span style={{ marginLeft: 6, fontSize: 10, background: 'linear-gradient(135deg, #f59e0b, #ef4444)', color: 'white', padding: '1px 6px', borderRadius: 8, fontWeight: 600 }}>👑管理</span>}
                               {isMe && <span style={{ marginLeft: 6, fontSize: 10, background: '#4f46e5', color: 'white', padding: '1px 6px', borderRadius: 8, fontWeight: 600 }}>我</span>}
+                              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{u.email || ''}</div>
+                            </td>
+                            <td style={{ padding: '10px 8px', fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap' }}>
+                              {meta.last_sign_in_at
+                                ? new Date(meta.last_sign_in_at).toLocaleString('zh-CN', { hour12: false })
+                                : <span style={{ color: '#d1d5db' }}>-</span>}
+                            </td>
+                            <td style={{ padding: '10px 8px', fontSize: 12, color: '#6b7280' }}>
+                              {meta.ip ? (
+                                <div>
+                                  <div style={{ fontFamily: 'monospace' }}>{meta.ip}</div>
+                                  <div style={{ fontSize: 11, color: '#9ca3af' }}>📍 {meta.location || '未知'}</div>
+                                </div>
+                              ) : <span style={{ color: '#d1d5db' }}>未记录</span>}
                             </td>
                             <td style={{ padding: '10px 8px', textAlign: 'center' }}>{u.total_questions || 0}</td>
                             <td style={{ padding: '10px 8px', textAlign: 'center' }}>
                               {u.total_questions > 0 ? <span style={{ color: Math.round((u.correct_answers / u.total_questions) * 100) >= 70 ? '#10b981' : '#ef4444', fontWeight: 600 }}>{Math.round((u.correct_answers / u.total_questions) * 100)}%</span> : '-'}
                             </td>
-                            <td style={{ padding: '10px 8px', textAlign: 'center' }}>{u.streak_days || 0}</td>
                             <td style={{ padding: '10px 8px', textAlign: 'center' }}>{u.is_admin ? '👑' : '普通'}</td>
                             <td style={{ padding: '10px 8px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>

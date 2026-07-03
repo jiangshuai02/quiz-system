@@ -1194,7 +1194,8 @@ button {
 
 @media (max-width: 480px) {
   .navbar-links { flex-wrap: wrap; height: 56px; overflow-x: auto; }
-  .practice-tool-toggle-label { display: none; }
+  .practice-tool-toggle-label { display: inline !important; font-size: 10px; }
+  .practice-tool-toggle { padding: 4px 6px; }
 }
 
 /* ====== 按知识点刷题快捷栏 ====== */

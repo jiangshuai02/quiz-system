@@ -388,3 +388,27 @@ export async function deleteAdminQuestion(id) {
   const { error } = await supabase.from('admin_questions').delete().eq('id', id);
   if (error) throw error;
 }
+
+/** ========== 分类管理 ========== */
+export async function getAdminCategories() {
+  const { data, error } = await supabase.from('admin_categories')
+    .select('*').order('display_order');
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createAdminCategory(c) {
+  const { data, error } = await supabase.from('admin_categories').insert(c).select();
+  if (error) throw error;
+  return data?.[0];
+}
+
+export async function updateAdminCategory(id, c) {
+  const { error } = await supabase.from('admin_categories').update(c).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteAdminCategory(id) {
+  const { error } = await supabase.from('admin_categories').delete().eq('id', id);
+  if (error) throw error;
+}

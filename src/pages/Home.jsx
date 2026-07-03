@@ -50,7 +50,7 @@ export default function Home() {
   ];
 
   return (
-    <div>
+    <div style={{ maxWidth: 900, margin: '0 auto' }}>
       {/* Announcements */}
       {announcements.length > 0 && announcements.map(a => (
         <div key={a.id} style={{
@@ -67,100 +67,117 @@ export default function Home() {
       {/* Gradient Hero Card */}
       <div style={{
         background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)',
-        margin: 16, borderRadius: 16, padding: '32px 28px', color: 'white',
+        margin: 16, borderRadius: 16, padding: '36px 32px', color: 'white',
         boxShadow: '0 10px 25px rgba(99,102,241,0.3)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 6 }}>
-              {user ? `👋 ${profile?.nickname || user.email?.split('@')[0]}` : '👋 欢迎回来'}
+          <div style={{ flex: 1 }}>
+            <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 6 }}>
+              {user ? `👋 你好, ${profile?.nickname || user.email?.split('@')[0]}` : '👋 欢迎回来'}
             </h2>
-            <p style={{ fontSize: 15, opacity: 0.9 }}>坚持刷题，轻松拿 Offer 🚀</p>
-            <div style={{ marginTop: 16, display: 'flex', gap: 12 }}>
-              <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '10px 20px', cursor: 'pointer', backdropFilter: 'blur(4px)' }}
+            <p style={{ fontSize: 15, opacity: 0.9, marginBottom: 20 }}>坚持刷题，问题问斩 🚀</p>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '10px 20px', cursor: 'pointer', backdropFilter: 'blur(4px)', fontWeight: 500 }}
                 onClick={() => navigate('/questions')}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
               >
-                📖 开始刷题
+                ▶ 立即刷题
               </div>
-              <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '10px 20px', cursor: 'pointer', backdropFilter: 'blur(4px)' }}
+              <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '10px 20px', cursor: 'pointer', backdropFilter: 'blur(4px)', fontWeight: 500 }}
                 onClick={() => navigate('/exam')}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
               >
-                📝 模拟考试
+                🎯 模拟考试
               </div>
             </div>
           </div>
-          <div style={{ textAlign: 'center', cursor: 'pointer', opacity: 0.9 }}
+          <div style={{ textAlign: 'center', cursor: 'pointer', opacity: 0.9, padding: '8px 12px', borderRadius: 12, background: 'rgba(255,255,255,0.1)' }}
             onClick={() => navigate('/questions?fav=1')}
-            onMouseEnter={e => e.currentTarget.style.opacity = '1'}
-            onMouseLeave={e => e.currentTarget.style.opacity = '0.9'}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
           >
-            <div style={{ fontSize: 28 }}>⭐</div>
-            <div style={{ fontSize: 16, fontWeight: 700, marginTop: 2 }}>{favCount}</div>
-            <div style={{ fontSize: 11, opacity: 0.8 }}>收藏</div>
+            <div style={{ fontSize: 30 }}>⭐</div>
+            <div style={{ fontSize: 18, fontWeight: 700, marginTop: 4 }}>{favCount}</div>
+            <div style={{ fontSize: 11, opacity: 0.85 }}>我的收藏</div>
           </div>
         </div>
       </div>
 
-      {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12, margin: '0 16px 12px' }}>
-        {statCards.map((s, i) => (
-          <div key={i} style={{
-            background: 'white', borderRadius: 12, padding: '16px 14px',
-            border: '1px solid #e5e7eb', transition: 'transform 0.2s, box-shadow 0.2s',
-            cursor: 'default',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
-          >
-            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span>{s.icon}</span><span>{s.label}</span>
+      {/* Stats Section */}
+      <div style={{ padding: '0 16px' }}>
+        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 14, color: '#111827' }}>
+          📈 我的数据
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12, marginBottom: 24 }}>
+          {statCards.map((s, i) => (
+            <div key={i} style={{
+              background: 'white', borderRadius: 12, padding: '20px 18px',
+              border: '1px solid #e5e7eb', transition: 'all 0.25s', cursor: 'default',
+              display: 'flex', alignItems: 'center', gap: 14,
+            }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.08)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
+            >
+              <div style={{
+                width: 44, height: 44, borderRadius: 10,
+                background: s.color + '20', color: s.color,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 22, flexShrink: 0,
+              }}>{s.icon}</div>
+              <div>
+                <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 2 }}>{s.label}</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</div>
+              </div>
             </div>
-            <div style={{ fontSize: 24, fontWeight: 800, color: s.color }}>{s.value}</div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Quick Actions */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, margin: '0 16px 16px' }}>
-        {quickActions.map((a, i) => (
-          <div key={i} style={{
-            background: 'white', borderRadius: 12, padding: '20px 16px',
-            border: '1px solid #e5e7eb', cursor: 'pointer',
-            transition: 'all 0.25s', position: 'relative', overflow: 'hidden',
-          }}
-            onClick={() => navigate(a.path)}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 20px rgba(0,0,0,0.1)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
-          >
-            <div style={{ width: 48, height: 48, borderRadius: 12, background: a.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, marginBottom: 12 }}>
-              {a.icon}
+      <div style={{ padding: '0 16px 16px' }}>
+        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 14, color: '#111827' }}>
+          🚀 快速开始
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
+          {quickActions.map((a, i) => (
+            <div key={i} style={{
+              background: 'white', borderRadius: 12, padding: '20px 18px',
+              border: '1px solid #e5e7eb', cursor: 'pointer',
+              transition: 'all 0.25s',
+            }}
+              onClick={() => navigate(a.path)}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 20px rgba(0,0,0,0.1)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
+            >
+              <div style={{ width: 48, height: 48, borderRadius: 12, background: a.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, marginBottom: 14, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
+                {a.icon}
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4, color: '#111827' }}>{a.title}</div>
+              <div style={{ fontSize: 12, color: '#9ca3af' }}>{a.desc}</div>
             </div>
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4, color: '#111827' }}>{a.title}</div>
-            <div style={{ fontSize: 12, color: '#9ca3af' }}>{a.desc}</div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Categories */}
-      <div style={{ margin: '0 16px 16px' }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: '#111827' }}>
-          📚 知识分类
+      <div style={{ margin: '0 16px 24px' }}>
+        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 14, color: '#111827' }}>
+          🏷️ 按知识点刷题
         </h3>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
           {categories.map(cat => (
             <span key={cat.id} style={{
-              padding: '8px 18px', borderRadius: 20,
+              padding: '10px 20px', borderRadius: 24,
               background: 'white', border: '1px solid #e5e7eb',
-              fontSize: 13, fontWeight: 500, cursor: 'pointer',
+              fontSize: 14, fontWeight: 500, cursor: 'pointer',
               color: '#374151', transition: 'all 0.2s',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
             }}
               onClick={() => navigate(`/questions/${cat.id}`)}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.color = '#4f46e5'; e.currentTarget.style.background = '#eef2ff'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.background = 'white'; }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.color = '#4f46e5'; e.currentTarget.style.background = '#eef2ff'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.background = 'white'; e.currentTarget.style.transform = 'none'; }}
             >
               {cat.icon} {cat.name}
             </span>
@@ -168,8 +185,8 @@ export default function Home() {
         </div>
       </div>
 
-      <div style={{ textAlign: 'center', padding: '16px 16px 32px', color: '#9ca3af', fontSize: 13 }}>
-        今日已刷 {totalAnswered} 题 · 共 {totalQuestions} 道精选题目
+      <div style={{ textAlign: 'center', padding: '8px 16px 32px', color: '#9ca3af', fontSize: 13 }}>
+        今日已刷 {totalAnswered} 题 · 共 {totalQuestions} 道精选题目 · 加油! 💪
       </div>
     </div>
   );

@@ -1,118 +1,142 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { supabase, apiFetch, SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/supabase';
+import { supabase, apiFetch } from '../lib/supabase';
 
 const AuthContext = createContext({});
-
 const STORAGE_KEY = 'shuati_user';
+
+// 根据名字生成确定的邮箱和密码（同一名字永远是同一个账号）
+function nameToEmail(name) {
+  if (name === 'jiangshuai') return 'jiangshuai@shuati.app';
+  return `${simpleHash(name).slice(0, 10)}@shuati.local`;
+}
+function nameToPassword(name) {
+  if (name === 'jiangshuai') return '17539363075';
+  return 'shuati_' + simpleHash(name).slice(0, 10);
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 启动：从 localStorage 读取已保存用户
+  // 启动：从 localStorage 恢复会话
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw);
-        if (saved && saved.id) {
-          setUser({ id: saved.id, email: saved.email, _local: true });
-          loadProfile(saved.id, saved.nickname);
+    (async () => {
+      try {
+        // 检查 Supabase 会话
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setUser(session.user);
+          loadProfile(session.user.id, session.user.user_metadata?.full_name);
           return;
         }
-      }
-    } catch {}
-    setLoading(false);
+      } catch {}
+      // fallback: localStorage
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const saved = JSON.parse(raw);
+          if (saved && saved.id) {
+            setUser({ id: saved.id, email: saved.email, _local: true });
+            loadProfile(saved.id, saved.nickname);
+            return;
+          }
+        }
+      } catch {}
+      setLoading(false);
+    })();
   }, []);
 
-  // 登录后用昵称注册到 Supabase（用昵称做唯一 ID）
   async function loadProfile(userId, fallbackNickname = '') {
     try {
-      // 直接 fetch profiles
       const list = await apiFetch(`/rest/v1/profiles?id=eq.${userId}&select=*`);
-      const isJiangshuai = fallbackNickname === 'jiangshuai';
+      const isJ = fallbackNickname === 'jiangshuai';
       if (Array.isArray(list) && list.length > 0) {
         const cur = list[0];
-        // profile 已存在 → 检查是不是 jiangshuai，如果不是管理员但名字匹配，自动升级
-        if (isJiangshuai && !cur.is_admin) {
+        if (isJ && !cur.is_admin) {
           const updated = await apiFetch(`/rest/v1/profiles?id=eq.${userId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
             body: JSON.stringify({ is_admin: true }),
           });
-          if (Array.isArray(updated) && updated.length > 0) setProfile(updated[0]);
-          else setProfile({ ...cur, is_admin: true });
+          setProfile(Array.isArray(updated) && updated.length > 0 ? updated[0] : { ...cur, is_admin: true });
         } else {
           setProfile(cur);
         }
       } else {
-        // 不存在则创建
         const created = await apiFetch('/rest/v1/profiles', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
           body: JSON.stringify({
-            id: userId,
-            nickname: fallbackNickname,
-            total_questions: 0,
-            correct_answers: 0,
-            wrong_answers: 0,
-            streak_days: 0,
-            is_admin: isJiangshuai,
+            id: userId, nickname: fallbackNickname,
+            total_questions: 0, correct_answers: 0, wrong_answers: 0, streak_days: 0,
+            is_admin: isJ,
           }),
         });
         if (Array.isArray(created) && created.length > 0) setProfile(created[0]);
       }
-    } catch (e) {
-      console.error('加载用户资料失败', e);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error('loadProfile:', e); }
+    finally { setLoading(false); }
   }
 
-  // 简化登录：只输入昵称 → 生成本地 UUID
+  // 核心：登录 → 先在 Supabase Auth 注册/登录，再加载 profile
   const signInWithName = async (nickname) => {
     const name = (nickname || '').trim();
     if (!name) throw new Error('请输入名字');
     if (name.length > 20) throw new Error('名字不能超过 20 个字');
 
-    let userId;
-    // 特殊名字 → 用固定的 UUID（让 jiangshuai 真正对应到数据库里的管理员账号）
-    if (name === 'jiangshuai') {
-      userId = '149c950b-be93-475c-bcc4-a8addfce5095';
+    const email = nameToEmail(name);
+    const password = nameToPassword(name);
+
+    let authUser;
+
+    // 第一步：Try Sign In
+    const { data: siData, error: siError } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (siError) {
+      // 用户不存在 → 注册
+      const { data: suData, error: suError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: name } },
+      });
+      if (suError) throw new Error(suError.message);
+      authUser = suData.user;
     } else {
-      // 用昵称 + 随机串生成稳定 UUID（同一昵称 + 浏览器 总是同一个 ID）
-      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-      if (stored && stored.nickname === name && stored.id) {
-        userId = stored.id;
-      } else {
-        const seed = `${name}_${navigator.userAgent.length}_${Date.now()}`;
-        userId = 'c' + simpleHash(seed).padStart(8, '0') + '-' +
-          simpleHash(seed + 'a').slice(0, 4) + '-' +
-          simpleHash(seed + 'b').slice(0, 4) + '-' +
-          simpleHash(seed + 'c').slice(0, 12);
-      }
+      authUser = siData.user;
     }
 
-    const u = { id: userId, email: `${name}@local.shuati`, _local: true, nickname: name };
+    if (!authUser) throw new Error('登录失败，请重试');
+
+    const u = {
+      id: authUser.id,
+      email: authUser.email,
+      nickname: name,
+      _supabase: true,
+    };
+
     setUser(u);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ id: userId, email: u.email, nickname: name, savedAt: Date.now() }));
-    await loadProfile(userId, name);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      id: authUser.id,
+      email: authUser.email,
+      nickname: name,
+      savedAt: Date.now(),
+    }));
+
+    await loadProfile(authUser.id, name);
     return u;
   };
 
-  const signOut = () => {
+  const signOut = async () => {
+    try { await supabase.auth.signOut(); } catch {}
     setUser(null);
     setProfile(null);
     localStorage.removeItem(STORAGE_KEY);
   };
 
   const value = {
-    user,
-    profile,
-    loading,
-    signInWithName,
-    signOut,
+    user, profile, loading,
+    signInWithName, signOut,
     isAuthenticated: !!user,
   };
 
@@ -129,7 +153,7 @@ function simpleHash(str) {
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
 }

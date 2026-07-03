@@ -186,7 +186,8 @@ export default function Leaderboard() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 15, fontWeight: 600, color: style.textColor, marginBottom: 2 }}>
                         {item.nickname || '匿名用户'}
-                        {isMe && <span style={{ marginLeft: 8, fontSize: 11, background: '#4f46e5', color: 'white', padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>我</span>}
+                        {item.is_admin && <span style={{ marginLeft: 6, fontSize: 10, background: 'linear-gradient(135deg, #f59e0b, #ef4444)', color: 'white', padding: '1px 6px', borderRadius: 8, fontWeight: 600 }}>👑管理</span>}
+                        {isMe && <span style={{ marginLeft: 6, fontSize: 10, background: '#4f46e5', color: 'white', padding: '1px 6px', borderRadius: 8, fontWeight: 600 }}>我</span>}
                       </div>
                       <div style={{ fontSize: 12, color: '#6b7280' }}>{getSecondaryValue(item)}</div>
                     </div>

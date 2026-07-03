@@ -232,7 +232,7 @@ export async function updateStudyStats(userId, isCorrect) {
  */
 export async function getLeaderboard(type = 'total') {
   try {
-    const profiles = await apiFetch('/rest/v1/profiles?select=id,nickname,total_questions,correct_answers,wrong_answers,streak_days,last_study_date&order=total_questions.desc&limit=100');
+    const profiles = await apiFetch('/rest/v1/profiles?select=id,nickname,is_admin,total_questions,correct_answers,wrong_answers,streak_days,last_study_date&order=total_questions.desc&limit=100');
     if (!profiles || profiles.length === 0) return [];
 
     let records = [];
@@ -252,7 +252,7 @@ export async function getLeaderboard(type = 'total') {
       const s = scoreMap[p.id] || { correct: 0, total: 0, dates: new Set() };
       const accuracy = s.total > 0 ? Math.round((s.correct / s.total) * 100) : 0;
       return {
-        user_id: p.id, nickname: p.nickname,
+        user_id: p.id, nickname: p.nickname, is_admin: p.is_admin,
         total_answered: s.total, correct_answers: s.correct,
         wrong_answers: s.total - s.correct, accuracy,
         active_days: s.dates.size,

@@ -4,8 +4,16 @@ import { questions, categories, getQuestionsByCategory } from '../data/questions
 import { useAuth } from '../contexts/AuthContext';
 import { saveExamResult } from '../lib/supabase';
 
-const EXAM_DURATION = 600;
-const EXAM_QUESTION_COUNT = 10;
+const EXAM_DURATIONS = [
+  { value: 300, label: '5 分钟' },
+  { value: 600, label: '10 分钟' },
+  { value: 900, label: '15 分钟' },
+  { value: 1200, label: '20 分钟' },
+  { value: 1800, label: '30 分钟' },
+];
+const EXAM_QUESTION_COUNTS = [5, 10, 20, 30, 50];
+const DEFAULT_DURATION = 600;
+const DEFAULT_COUNT = 10;
 const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
 export default function Exam() {
@@ -18,7 +26,9 @@ export default function Exam() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState([]);
   const [answers, setAnswers] = useState({});
-  const [timeLeft, setTimeLeft] = useState(EXAM_DURATION);
+  const [examDuration, setExamDuration] = useState(DEFAULT_DURATION);
+  const [examCount, setExamCount] = useState(DEFAULT_COUNT);
+  const [timeLeft, setTimeLeft] = useState(DEFAULT_DURATION);
   const [showAnswer, setShowAnswer] = useState(false);
   const [startTime, setStartTime] = useState(null);
   const timerRef = useRef(null);
@@ -52,13 +62,13 @@ export default function Exam() {
     if (pool.length === 0) return;
 
     const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    const selected = shuffled.slice(0, Math.min(EXAM_QUESTION_COUNT, shuffled.length));
+    const selected = shuffled.slice(0, Math.min(examCount, shuffled.length));
 
     setExamQuestions(selected);
     setCurrentIndex(0);
     setSelectedOptions([]);
     setAnswers({});
-    setTimeLeft(EXAM_DURATION);
+    setTimeLeft(examDuration);
     setShowAnswer(false);
     setStartTime(Date.now());
     setExamState('running');
@@ -144,7 +154,7 @@ export default function Exam() {
       <div className="practice-page">
         <div className="page-header" style={{ textAlign: 'center' }}>
           <h1 className="page-title">📝 模拟考试</h1>
-          <p className="page-desc">限时 10 分钟，完成 {EXAM_QUESTION_COUNT} 道随机题目</p>
+          <p className="page-desc">支持自定义时长和题目数量</p>
         </div>
 
         <div className="practice-card" style={{ maxWidth: 600, margin: '0 auto' }}>
@@ -166,19 +176,29 @@ export default function Exam() {
             ))}
           </div>
 
-          <div style={{ marginTop: 24, textAlign: 'center' }}>
-            <button className="btn btn-primary" onClick={handleStartExam}
-              style={{ padding: '14px 48px', fontSize: 18 }}>
-              🚀 开始考试
-            </button>
-          </div>
-
-          <div style={{ marginTop: 20, padding: 16, background: 'var(--gray-50)', borderRadius: 8, fontSize: 14, color: 'var(--gray-600)' }}>
-            <strong style={{ display: 'block', marginBottom: 8 }}>📋 考试规则：</strong>
-            <div>• 共 {EXAM_QUESTION_COUNT} 道题目，限时 10 分钟</div>
+          <div style={{ marginTop: 20, padding: 16, background: '#f9fafb', borderRadius: 8, fontSize: 14, color: '#6b7280' }}>
+            <strong style={{ display: 'block', marginBottom: 8, color: '#111827' }}>⚙️ 考试设置：</strong>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>⏱️ 考试时长</div>
+                <select value={examDuration} onChange={e => setExamDuration(parseInt(e.target.value))}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14 }}>
+                  {EXAM_DURATIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>📝 题目数量</div>
+                <select value={examCount} onChange={e => setExamCount(parseInt(e.target.value))}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14 }}>
+                  {EXAM_QUESTION_COUNTS.map(c => <option key={c} value={c}>{c} 题</option>)}
+                </select>
+              </div>
+            </div>
+            <strong style={{ display: 'block', marginBottom: 4, color: '#111827' }}>📋 考试规则：</strong>
+            <div>• 共 {examCount} 道题目，限时 {Math.floor(examDuration / 60)} 分钟</div>
             <div>• 可随时交卷，系统自动计算成绩</div>
             <div>• 提交后无法修改答案</div>
-            {user && <div style={{ marginTop: 8, color: 'var(--success)' }}>☁️ 考试结果将自动同步到云端</div>}
+            {user && <div style={{ marginTop: 8, color: '#10b981' }}>☁️ 考试结果将自动同步到云端</div>}
           </div>
         </div>
       </div>

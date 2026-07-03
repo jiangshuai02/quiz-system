@@ -175,7 +175,15 @@ export default function Home() {
               color: '#374151', transition: 'all 0.2s',
               boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
             }}
-              onClick={() => navigate(`/questions/${cat.id}`)}
+              onClick={() => {
+                // 获取该分类的第一题，直接开始刷题
+                const catQuestions = questions.filter(q => q.category === cat.id);
+                if (catQuestions.length > 0) {
+                  navigate(`/practice/${catQuestions[0].id}`);
+                } else {
+                  navigate(`/questions/${cat.id}`);
+                }
+              }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.color = '#4f46e5'; e.currentTarget.style.background = '#eef2ff'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.color = '#374151'; e.currentTarget.style.background = 'white'; e.currentTarget.style.transform = 'none'; }}
             >

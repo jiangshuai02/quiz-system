@@ -277,8 +277,39 @@ export async function getLeaderboard(type = 'total') {
  */
 export async function getAllUsers() {
   try {
-    const data = await apiFetch('/rest/v1/profiles?select=*&order=total_questions.desc');
-    return data || [];
+    const profiles = await apiFetch('/rest/v1/profiles?select=*');
+    // 也拉取 auth 用户（补全那些没有 profile 的账号）
+    let authUsers = [];
+    try { authUsers = await apiFetch('/auth/v1/admin/users?page=1&per_page=200') || []; } catch {}
+    if (!Array.isArray(authUsers)) authUsers = [];
+
+    // 合并：auth 用户为主，profile 数据填充统计
+    const combined = authUsers.map(au => {
+      const p = (profiles || []).find(x => x.id === au.id) || {};
+      return {
+        id: au.id,
+        nickname: p.nickname || au.user_metadata?.full_name || au.email?.split('@')[0] || '匿名',
+        email: au.email || p.email || '',
+        avatar_url: p.avatar_url || '',
+        total_questions: p.total_questions || 0,
+        correct_answers: p.correct_answers || 0,
+        wrong_answers: p.wrong_answers || 0,
+        streak_days: p.streak_days || 0,
+        last_study_date: p.last_study_date || (au.last_sign_in_at || '').slice(0, 10),
+        is_admin: p.is_admin || au.email === 'jiangshuai@shuati.app',
+        last_sign_in_at: au.last_sign_in_at || p.updated_at || p.created_at,
+        last_sign_in_ip: au.last_sign_in_ip || '',
+        created_at: p.created_at || au.created_at,
+        updated_at: p.updated_at || au.last_sign_in_at,
+      };
+    });
+
+    // 补上 profiles 里有但 auth 没有的（罕见但保险）
+    (profiles || []).forEach(p => {
+      if (!combined.find(c => c.id === p.id)) combined.push(p);
+    });
+
+    return combined;
   } catch (e) {
     console.warn('getAllUsers failed:', e.message);
     return [];

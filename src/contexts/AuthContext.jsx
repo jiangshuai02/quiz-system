@@ -76,18 +76,22 @@ export function AuthProvider({ children }) {
     if (!name) throw new Error('请输入名字');
     if (name.length > 20) throw new Error('名字不能超过 20 个字');
 
-    // 用昵称 + 随机串生成稳定 UUID（同一昵称 + 浏览器 总是同一个 ID）
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
     let userId;
-    if (stored && stored.nickname === name && stored.id) {
-      userId = stored.id;
+    // 特殊名字 → 用固定的 UUID（让 jiangshuai 真正对应到数据库里的管理员账号）
+    if (name === 'jiangshuai') {
+      userId = '149c950b-be93-475c-bcc4-a8addfce5095';
     } else {
-      // 新名字 → 新 ID（基于昵称 hash + 时间戳）
-      const seed = `${name}_${navigator.userAgent.length}_${Date.now()}`;
-      userId = 'c' + simpleHash(seed).padStart(8, '0') + '-' +
-        simpleHash(seed + 'a').slice(0, 4) + '-' +
-        simpleHash(seed + 'b').slice(0, 4) + '-' +
-        simpleHash(seed + 'c').slice(0, 12);
+      // 用昵称 + 随机串生成稳定 UUID（同一昵称 + 浏览器 总是同一个 ID）
+      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+      if (stored && stored.nickname === name && stored.id) {
+        userId = stored.id;
+      } else {
+        const seed = `${name}_${navigator.userAgent.length}_${Date.now()}`;
+        userId = 'c' + simpleHash(seed).padStart(8, '0') + '-' +
+          simpleHash(seed + 'a').slice(0, 4) + '-' +
+          simpleHash(seed + 'b').slice(0, 4) + '-' +
+          simpleHash(seed + 'c').slice(0, 12);
+      }
     }
 
     const u = { id: userId, email: `${name}@local.shuati`, _local: true, nickname: name };

@@ -71,13 +71,11 @@ export function AuthProvider({ children }) {
     if (!name) throw new Error('请输入名字');
     if (name.length > 20) throw new Error('名字不能超过 20 个字');
 
-    // 用昵称 hash 生成稳定 UUID（同一名字同一浏览器=同一ID）
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    // 强制用名字生成稳定 userId（同一名字=同一账号）
+    // jiangshuai 用固定的真实 UUID，其它名字用 hash
     let userId;
     if (name === 'jiangshuai') {
       userId = '149c950b-be93-475c-bcc4-a8addfce5095';
-    } else if (stored && stored.nickname === name && stored.id) {
-      userId = stored.id;
     } else {
       userId = 'c' + simpleHash(name).padStart(8, '0') + '-' +
         simpleHash(name + 'a').slice(0, 4) + '-' +

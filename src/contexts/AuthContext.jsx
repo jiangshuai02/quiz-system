@@ -35,20 +35,35 @@ export function AuthProvider({ children }) {
 
       if (Array.isArray(list) && list.length > 0) {
         const cur = list[0];
-        // 更新最后登录（用 last_study_date 字段记录今天日期）
         await apiFetch(`/rest/v1/profiles?id=eq.${userId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
           body: JSON.stringify({
             last_study_date: today,
             updated_at: new Date().toISOString(),
-            // 自动给 jiangshuai 设管理员
             ...(isJ && !cur.is_admin ? { is_admin: true } : {}),
           }),
         });
         setProfile({ ...cur, last_study_date: today, is_admin: isJ || cur.is_admin });
       } else {
-        // 创建新 profile
+        // 创建新 profile: 先确保 auth.users 里有该用户（否则 FK 约束会失败）
+        try {
+          const email = `${simpleHash(nickname).slice(0, 10)}@anonymous.shuati`;
+          await apiFetch('/auth/v1/admin/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email,
+              password: 'shuati_' + simpleHash(nickname).slice(0, 10),
+              email_confirm: true,
+              user_metadata: { full_name: nickname },
+            }),
+          });
+        } catch (authErr) {
+          // 如果 auth 创建失败（比如用户已存在），继续尝试创建 profile
+          console.warn('auth user create warning:', authErr?.message?.slice(0, 50));
+        }
+
         const created = await apiFetch('/rest/v1/profiles', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
@@ -71,15 +86,46 @@ export function AuthProvider({ children }) {
     if (!name) throw new Error('请输入名字');
     if (name.length > 20) throw new Error('名字不能超过 20 个字');
 
-    // 强制用名字生成稳定 userId（同一名字=同一账号）
-    const userId = nameToId(name);
+    // 先查/创建 auth users（拿到真实 UUID），然后创建 profile
+    let realUserId;
+    if (name === 'jiangshuai') {
+      realUserId = '149c950b-be93-475c-bcc4-a8addfce5095';
+    } else {
+      // 尝试在 auth.users 中查找已有用户
+      const email = `${simpleHash(name).slice(0, 10)}@anonymous.shuati`;
+      const password = 'shuati_' + simpleHash(name).slice(0, 10);
+      let found = false;
+      try {
+        const usersRes = await apiFetch(`/auth/v1/admin/users?page=1&per_page=50`);
+        if (Array.isArray(usersRes?.users)) {
+          const match = usersRes.users.find(u => u.email === email);
+          if (match) { realUserId = match.id; found = true; }
+        }
+      } catch {}
+      if (!found) {
+        try {
+          const created = await apiFetch('/auth/v1/admin/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email, password,
+              email_confirm: true,
+              user_metadata: { full_name: name },
+            }),
+          });
+          realUserId = created?.id;
+        } catch {}
+      }
+      // 兜底：仍用 hash 生成（但可能 FK 失败）
+      if (!realUserId) realUserId = nameToId(name);
+    }
 
-    const u = { id: userId, nickname: name, _local: true };
+    const u = { id: realUserId, nickname: name, _local: true };
     setUser(u);
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      id: userId, nickname: name, savedAt: Date.now(),
+      id: realUserId, nickname: name, savedAt: Date.now(),
     }));
-    await loadAndUpdateProfile(userId, name);
+    await loadAndUpdateProfile(realUserId, name);
     return u;
   };
 

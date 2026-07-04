@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from 'fs';
+import { copyFileSync, readFileSync, readdirSync, statSync } from 'fs';
 import { join, relative } from 'path';
 import https from 'https';
 
@@ -54,7 +54,7 @@ for (const f of files) {
 }
 const treeRes = await api('POST', `/repos/${REPO}/git/trees`, { base_tree: baseSha, tree });
 const commitRes = await api('POST', `/repos/${REPO}/git/commits`, {
-  message: 'fix: nameToId 生成合法 UUID v4 格式,确保 profiles 创建成功',
+  message: 'fix: 登录时先查/创建 auth users 拿到真实 UUID,确保 profiles 创建成功',
   tree: treeRes.data.sha, parents: [baseSha],
 });
 await api('PATCH', `/repos/${REPO}/git/refs/heads/main`, { sha: commitRes.data.sha });

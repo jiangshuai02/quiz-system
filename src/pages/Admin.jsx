@@ -10,7 +10,6 @@ import {
   apiFetch,
 } from '../lib/supabase';
 import { categories as staticCategories } from '../data/questions';
-import { supabase } from '../lib/supabase';
 
 const DIFFICULTIES = [
   { value: 1, label: '⭐ 入门' },
@@ -101,8 +100,11 @@ export default function Admin() {
   const handleSetAdmin = async (userId, isAdmin, nickname) => {
     if (!confirm(`${isAdmin ? '设置' : '取消'} ${nickname} 为管理员?`)) return;
     try {
-      const { error } = await supabase.from('profiles').update({ is_admin: isAdmin }).eq('id', userId);
-      if (error) throw error;
+      await apiFetch(`/rest/v1/profiles?id=eq.${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_admin: isAdmin }),
+      });
       showMsg(`✅ 已${isAdmin ? '设置' : '取消'}管理员`);
       const us = await getAllUsers(); setUsers(us);
     } catch (e) { showMsg('❌ 失败: ' + e.message); }
@@ -111,12 +113,15 @@ export default function Admin() {
   const handleDeleteUser = async (userId, nickname) => {
     if (!confirm(`⚠️ 确定删除用户「${nickname}」?\n\n此操作将删除:\n• 用户账号\n• 所有错题\n• 所有答题记录\n• 所有考试记录\n• 收藏\n\n此操作不可恢复!`)) return;
     try {
-      await supabase.from('wrong_answers').delete().eq('user_id', userId);
-      await supabase.from('answer_records').delete().eq('user_id', userId);
-      await supabase.from('exam_records').delete().eq('user_id', userId);
-      await supabase.from('favorites').delete().eq('user_id', userId);
-      await supabase.from('daily_stats').delete().eq('user_id', userId);
-      await supabase.from('profiles').delete().eq('id', userId);
+      // 用 apiFetch 删除各表数据
+      await Promise.all([
+        apiFetch(`/rest/v1/wrong_answers?user_id=eq.${userId}`, { method: 'DELETE' }).catch(() => {}),
+        apiFetch(`/rest/v1/answer_records?user_id=eq.${userId}`, { method: 'DELETE' }).catch(() => {}),
+        apiFetch(`/rest/v1/exam_records?user_id=eq.${userId}`, { method: 'DELETE' }).catch(() => {}),
+        apiFetch(`/rest/v1/favorites?user_id=eq.${userId}`, { method: 'DELETE' }).catch(() => {}),
+        apiFetch(`/rest/v1/daily_stats?user_id=eq.${userId}`, { method: 'DELETE' }).catch(() => {}),
+      ]);
+      await apiFetch(`/rest/v1/profiles?id=eq.${userId}`, { method: 'DELETE' });
       showMsg('✅ 用户已删除');
       const us = await getAllUsers(); setUsers(us);
     } catch (e) { showMsg('❌ 删除失败: ' + e.message); }

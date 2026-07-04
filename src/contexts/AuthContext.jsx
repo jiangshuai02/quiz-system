@@ -72,16 +72,7 @@ export function AuthProvider({ children }) {
     if (name.length > 20) throw new Error('名字不能超过 20 个字');
 
     // 强制用名字生成稳定 userId（同一名字=同一账号）
-    // jiangshuai 用固定的真实 UUID，其它名字用 hash
-    let userId;
-    if (name === 'jiangshuai') {
-      userId = '149c950b-be93-475c-bcc4-a8addfce5095';
-    } else {
-      userId = 'c' + simpleHash(name).padStart(8, '0') + '-' +
-        simpleHash(name + 'a').slice(0, 4) + '-' +
-        simpleHash(name + 'b').slice(0, 4) + '-' +
-        simpleHash(name + 'c').slice(0, 12);
-    }
+    const userId = nameToId(name);
 
     const u = { id: userId, nickname: name, _local: true };
     setUser(u);
@@ -114,6 +105,18 @@ function simpleHash(str) {
     h |= 0;
   }
   return Math.abs(h).toString(16);
+}
+
+// 生成合法 UUID v4 格式 (8-4-4-4-12)
+function nameToId(name) {
+  if (name === 'jiangshuai') return '149c950b-be93-475c-bcc4-a8addfce5095';
+  const h1 = simpleHash(name).padStart(8, '0');
+  const h2 = simpleHash(name + 'a').padStart(4, '0');
+  const h3 = simpleHash(name + 'b').padStart(4, '0');
+  const h4 = simpleHash(name + 'c').padStart(4, '0');
+  const h5 = simpleHash(name + 'd').padStart(12, '0');
+  // UUID v4: 第3段首位4, 第4段首位8-b
+  return `${h1}-${h2}-4${h3.slice(1, 3)}-${(8 + (parseInt(h4[0], 16) % 4)).toString(16)}${h4.slice(1, 4)}-${h5}`;
 }
 
 export function useAuth() {

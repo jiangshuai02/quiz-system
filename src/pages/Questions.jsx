@@ -56,9 +56,10 @@ export default function Questions() {
   const handleCategoryClick = (catId) => {
     setSelectedCategory(catId);
     // 找到该科目第一道题的 ID
-    const firstQ = getQuestionsByCategory(catId)[0];
+    const catQuestions = getQuestionsByCategory(catId);
+    const firstQ = catQuestions[0];
     if (firstQ) {
-      navigate(`/practice/${firstQ.id}`);
+      navigate(`/practice/${catId}/${firstQ.id}`);
     }
   };
 
@@ -146,7 +147,10 @@ export default function Questions() {
       ) : (
         <div className="question-list">
           {filteredQuestions.map(q => (
-            <div key={q.id} className="question-item" onClick={() => navigate(`/practice/${q.id}`)}>
+            <div key={q.id} className="question-item" onClick={() => {
+              const cat = selectedCategory || q.category;
+              navigate(`/practice/${cat}/${q.id}`);
+            }}>
               <div className="question-item-left">
                 <div className="question-item-title">
                   {q.title.length > 50 ? q.title.slice(0, 50) + '...' : q.title}

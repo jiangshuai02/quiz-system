@@ -101,7 +101,8 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/questions" element={<Questions />} />
           <Route path="/questions/:categoryId" element={<Questions />} />
-          <Route path="/practice/:questionId" element={<Practice />} />
+          <Route path="/practice/:categoryId/:questionId" element={<Practice />} />
+          <Route path="/practice/:categoryId" element={<Practice />} />
           <Route path="/practice" element={<Practice />} />
           <Route path="/exam" element={<Exam />} />
           <Route path="/wrongbook" element={<WrongBook />} />

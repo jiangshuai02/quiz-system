@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { questions, categories, difficultyLabels, difficultyText } from '../data/questions';
+import { questions, categories, difficultyLabels, difficultyText, getQuestionsByCategory } from '../data/questions';
 import { useAuth } from '../contexts/AuthContext';
 import { addWrongAnswer, recordAnswer, updateStudyStats } from '../lib/supabase';
 
@@ -33,20 +33,34 @@ function shuffleQuestionOptions(question) {
 export default function Practice() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { questionId } = useParams();
+  const { questionId, categoryId } = useParams();
 
-  const [questionOrder, setQuestionOrder] = useState(() => questions.map((_, i) => i));
+  // 根据分类过滤题目（如果传了分类ID则只显示该分类的题）
+  const filteredQuestions = useMemo(() => {
+    if (categoryId) {
+      return getQuestionsByCategory(categoryId);
+    }
+    return getQuestionsByCategory('all'); // 默认「全部」模式（已排除数据库试卷）
+  }, [categoryId]);
+
+  const [questionOrder, setQuestionOrder] = useState(() => filteredQuestions.map((_, i) => i));
   const [optionShuffleEnabled, setOptionShuffleEnabled] = useState(false);
   const [autoNextOnCorrect, setAutoNextOnCorrect] = useState(false);
   const [showAnswerSheet, setShowAnswerSheet] = useState(false);
 
+  // 当分类变化时重置题目顺序
+  useEffect(() => {
+    setQuestionOrder(filteredQuestions.map((_, i) => i));
+    setCurrentIndex(0);
+  }, [categoryId]);
+
   const baseQuestionList = useMemo(() => {
-    return questionOrder.map(i => questions[i]);
-  }, [questionOrder]);
+    return questionOrder.map(i => filteredQuestions[i]);
+  }, [questionOrder, filteredQuestions]);
 
   const [currentIndex, setCurrentIndex] = useState(() => {
     if (questionId) {
-      const idx = questions.findIndex(q => q.id === parseInt(questionId));
+      const idx = filteredQuestions.findIndex(q => q.id === parseInt(questionId));
       if (idx >= 0) return idx;
     }
     return 0;

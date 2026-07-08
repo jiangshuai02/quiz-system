@@ -2410,7 +2410,10 @@ export const questions = [
 
 // 获取题目
 export function getQuestionsByCategory(categoryId) {
-  if (!categoryId || categoryId === 'all') return questions;
+  if (!categoryId || categoryId === 'all') {
+    // 「全部」只返回主分类题库（排除数据库试卷一/二）
+    return questions.filter(q => !q.category.startsWith('dbshiijuan'));
+  }
   return questions.filter(q => q.category === categoryId);
 }
 
